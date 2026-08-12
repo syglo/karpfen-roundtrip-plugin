@@ -13,9 +13,32 @@ plugins {
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+    flatDir {
+        dirs(rootProject.file("libs"))
+    }
 }
 
 dependencies {
+    // EMF standalone dependencies
+    // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.ecore
+    implementation("org.eclipse.emf:org.eclipse.emf.ecore:2.42.0")
+    // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.ecore.xmi
+    implementation("org.eclipse.emf:org.eclipse.emf.ecore.xmi:2.40.0")
+    // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.common
+    implementation("org.eclipse.emf:org.eclipse.emf.common:2.45.0") 
+
+    // ANTLR runtime
+    // Source: https://mvnrepository.com/artifact/org.antlr/antlr4-runtime
+    implementation("org.antlr:antlr4-runtime:4.13.1")
+
+    // Local jar of karpfen dsl tools in libs/
+    //implementation(files(rootProject.file("libs/karpfen-dsl-tools.jar")))
+    //implementation(files("libs/karpfen-dsl-tools.jar"))
+    implementation("karpfen:karpfen-dsl-tools:1.0")
+    implementation("org.json:json:20240303")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
+
+    
     // Use JUnit Jupiter for testing.
     testImplementation(libs.junit.jupiter)
 
@@ -28,7 +51,7 @@ dependencies {
 // Apply a specific Java toolchain to ease working on different environments.
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -40,4 +63,50 @@ application {
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+        showStackTraces = true
+    }
+}
+
+// Generate OSGi plugin metadata into META-INF/MANIFEST.MF inside the output JAR
+tasks.jar {
+    manifest {
+        attributes(
+            mapOf(
+                "Manifest-Version" to "1.0",
+                "Bundle-ManifestVersion" to "2",
+                "Bundle-Name" to "Karpfen Visual Roundtrip Plugin",
+                "Bundle-SymbolicName" to "org.karpfen.roundtrip.plugin;singleton:=true",
+                "Bundle-Version" to "1.0.0.qualifier",
+                "Require-Bundle" to "org.eclipse.emf.ecore, org.eclipse.sirius, org.eclipse.sirius.diagram",
+                "Export-Package" to "org.karpfen.ecore, org.karpfen.t2m, org.karpfen.d2t"
+            )
+        )
+    }
+}
+
+// Compiles karpfen jar if not existing
+tasks.register<Exec>("setupKarpfenJar") {
+    val scriptFile = rootProject.file("setup-karpfen.ps1")
+    val targetJar = rootProject.file("libs/karpfen-dsl-tools.jar")
+
+    onlyIf {
+        !targetJar.exists()
+    }
+
+    // Set execution directory to the root project directory
+    workingDir = rootProject.projectDir
+
+    commandLine(
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", scriptFile.absolutePath
+    )
+}
+
+tasks.named("compileJava") {
+    dependsOn("setupKarpfenJar")
 }
