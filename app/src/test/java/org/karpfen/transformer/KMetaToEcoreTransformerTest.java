@@ -74,17 +74,25 @@ public class KMetaToEcoreTransformerTest {
     }
 
     @Test
-    void testFileSerialization(@TempDir Path tempDir) throws IOException {
+    void testFileSerialization() throws IOException {
         String kmetaFilePath = "../example/metamodel_dsl_example.kmeta";
         Metamodel metamodel = KmetaDSLConverter.INSTANCE.parseKmetaFile(kmetaFilePath);
 
         KMetaToEcoreTransformer transformer = new KMetaToEcoreTransformer();
         EPackage ePackage = transformer.transform(metamodel, "robotdomain", "http://github/karpfen", "robotdomain");
 
-        File targetFile = tempDir.resolve("robotdomain.ecore").toFile();
+        // Tmp dir local to project
+        File outputDir = new File("build/test-outputs");
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
+
+        File targetFile = new File(outputDir, "robotdomain.ecore");
         transformer.saveToEcoreFile(ePackage, targetFile);
 
         assertTrue(targetFile.exists());
         assertTrue(targetFile.length() > 0);
+
+        System.out.println("File serialization tmp artifact: " + targetFile.getAbsolutePath());
     }
 }
