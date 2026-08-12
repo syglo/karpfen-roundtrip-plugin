@@ -39,6 +39,25 @@ public class KMetaToEcoreTransformer {
                 attribute.setUpperBound(prop.isList() ? ETypedElement.UNBOUNDED_MULTIPLICITY : 1);
                 eClass.getEStructuralFeatures().add(attribute);
             }
+
+            // Map has / knows -> EReference
+            for (ClassTypeProperty rel : classType.getObjectProperties()) {
+                EReference reference = factory.createEReference();
+                reference.setName(rel.getKey());
+
+                EClass targetClass = eClassMap.get(rel.getReference().getClassTypeName());
+                if (targetClass == null) {
+                    throw new IllegalArgumentException("Unknown target class: " + rel.getReference().getClassTypeName());
+                }
+                reference.setEType(targetClass);
+
+                // if true then has = EMBEDDED, if false then knows = LINK
+                boolean isContainment = rel.getAssociationType() == AssociationType.EMBEDDED; // or LINK
+                reference.setContainment(isContainment);
+                reference.setUpperBound(rel.isList() ? ETypedElement.UNBOUNDED_MULTIPLICITY : 1);
+
+                eClass.getEStructuralFeatures().add(reference);
+            }
         }
 
         return ePackage;
