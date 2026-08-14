@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <!-- Register the Sirius Viewpoint Model -->
+   <extension point="org.eclipse.sirius.componentization">
+      <component
+            id="org.karpfen.roundtrip.design"
+            viewpointRegistryModel="description/karpfen.odesign">
+      </component>
+   </extension>
+</plugin>

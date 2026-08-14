@@ -8,13 +8,57 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
+    id("dev.equo.p2deps") version "1.7.8"
 }
 
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+    // Eclipse Maven
+    //p2AsMaven {
+        //url("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
+    //}
+    // Official Sirius 7.5.0 P2 update site
+    //p2AsMaven {
+        //url("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
+    //}
+
+    /*
+    maven {
+        url = uri("https://repo.eclipse.org/content/groups/releases/")
+        metadataSources {
+            mavenPom()
+            artifact()
+        }
+    }
+    */
+    //maven {
+        //url = uri("https://repo.eclipse.org/content/repositories/sirius-releases/")
+    //}
+    //maven {
+        //url = uri("https://repo.eclipse.org/content/groups/releases/")
+    //}
+    /*
+    maven {
+        url = uri("https://repo.eclipse.org/content/repositories/sirius-maven2-snapshots/")
+        
+        metadataSources {
+            mavenPom()
+            artifact()
+        }
+    }
+    */
     flatDir {
         dirs(rootProject.file("libs"))
+    }
+}
+
+p2deps {
+    into("implementation") {
+        p2repo("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
+        install("org.eclipse.sirius")
+        install("org.eclipse.sirius.diagram")
+        install("org.eclipse.sirius.diagram.formatdata")
     }
 }
 
@@ -27,6 +71,19 @@ dependencies {
     // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.common
     implementation("org.eclipse.emf:org.eclipse.emf.common:2.45.0") 
 
+    // Eclipse Sirius .odesign
+    //https://repo.eclipse.org/#browse/browse:sirius-maven2-snapshots:org%2Feclipse%2Fsirius%2Forg.eclipse.sirius%2F7.5.0-SNAPSHOT%2F7.5.0-20251114.144540-27
+    //implementation("org.eclipse.sirius:org.eclipse.sirius:7.5.0-20251114.144540-27")
+    //implementation("org.eclipse.sirius:org.eclipse.sirius:7.5.0-SNAPSHOT")
+    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram:7.5.0-SNAPSHOT")
+    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram.formatdata:7.5.0-SNAPSHOT")
+    //implementation("org.eclipse.sirius:org.eclipse.sirius:7.5.0")
+    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram:7.5.0")
+    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram.formatdata:7.5.0")
+    //implementation("sirius-deps:org.eclipse.sirius:7.5.0")
+    //implementation("sirius-deps:org.eclipse.sirius.diagram:7.5.0")               
+    //implementation("sirius-deps:org.eclipse.sirius.diagram.formatdata:7.5.0")
+    
     // ANTLR runtime
     // Source: https://mvnrepository.com/artifact/org.antlr/antlr4-runtime
     implementation("org.antlr:antlr4-runtime:4.13.1")
@@ -80,8 +137,8 @@ tasks.jar {
                 "Bundle-Name" to "Karpfen Visual Roundtrip Plugin",
                 "Bundle-SymbolicName" to "org.karpfen.roundtrip.plugin;singleton:=true",
                 "Bundle-Version" to "1.0.0.qualifier",
-                "Require-Bundle" to "org.eclipse.emf.ecore, org.eclipse.sirius, org.eclipse.sirius.diagram",
-                "Export-Package" to "org.karpfen.ecore, org.karpfen.t2m, org.karpfen.d2t"
+                "Require-Bundle" to "org.eclipse.emf.ecore, org.eclipse.emf.ecore.xmi, org.eclipse.sirius, org.eclipse.sirius.diagram, org.eclipse.elk.sdk",
+                "Export-Package" to "org.karpfen.transformer"
             )
         )
     }
