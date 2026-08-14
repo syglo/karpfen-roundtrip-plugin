@@ -22,6 +22,8 @@ public class KMetaToEcoreTransformer {
 
     private final EcoreFactory factory = EcoreFactory.eINSTANCE;
 
+    public static final String ID_FEATURE_NAME = "__id__";
+
     // Lookup caches T2M D2T
     private final Map<String, EClass> eClassMap = new HashMap<>();
     private final Map<String, EStructuralFeature> featureMap = new HashMap<>();
@@ -47,6 +49,14 @@ public class KMetaToEcoreTransformer {
         for (ClassType classType : kMetamodel.getTypes()) {
             EClass eClass = factory.createEClass();
             eClass.setName(classType.getName());
+
+            // Synthetic instance identifier attributes (helps later)
+            EAttribute idAttr = factory.createEAttribute();
+            idAttr.setName(ID_FEATURE_NAME);
+            idAttr.setEType(EcorePackage.Literals.ESTRING);
+            idAttr.setID(true); // EMF unique intrinsic ID
+            idAttr.setDefaultValue("");
+            eClass.getEStructuralFeatures().add(idAttr);
 
             // Map doc comments to EMF GenModel annotations - visual tooltips in IDE
             if (classType.getComment() != null && !classType.getComment().isBlank()) {

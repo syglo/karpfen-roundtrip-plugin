@@ -194,7 +194,11 @@ public class OdesignGenerator {
         eObjectNode.setSemanticCandidatesExpression("aql:self.eAllContents(ecore::EObject)->including(self)");
 
         FlatContainerStyleDescription objStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
-        objStyle.setLabelExpression("aql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and selfaql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and self.eGet(self.eClass().getEStructuralFeature('name')) <> null then ' : ' + self.eGet(self.eClass().getEStructuralFeature('name')).toString() else '' endif");
+
+        //objStyle.setLabelExpression("aql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and selfaql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and self.eGet(self.eClass().getEStructuralFeature('name')) <> null then ' : ' + self.eGet(self.eClass().getEStructuralFeature('name')).toString() else '' endif");
+        // AQL Expression: "turtle : Robot" or "APB 2101 : Room"
+        objStyle.setLabelExpression("aql:if self.eClass().getEStructuralFeature('__id__') <> null and self.eGet(self.eClass().getEStructuralFeature('__id__')) <> '' then self.eGet(self.eClass().getEStructuralFeature('__id__')).toString() + ' : ' + self.eClass().name else self.eClass().name endif");
+
         objStyle.setShowIcon(true);
         objStyle.setBorderSizeComputationExpression("1");
         eObjectNode.setStyle(objStyle);

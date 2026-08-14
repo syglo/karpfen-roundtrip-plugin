@@ -19,6 +19,7 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
+import org.eclipse.emf.ecore.xmi.XMLResource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 
 import java.io.File;
@@ -77,7 +78,9 @@ public class KModelToEcoreInstanceTransformer {
         Resource resource = resourceSet.createResource(fileUri);
 
         resource.getContents().addAll(rootObjects);
-        resource.save(Collections.emptyMap());
+        Map<Object, Object> saveOptions = new HashMap<>();
+        saveOptions.put(XMLResource.OPTION_KEEP_DEFAULT_CONTENT, Boolean.TRUE); // forces default values to be saved too
+        resource.save(saveOptions);
     }
 
     public void saveToXmiFile(EObject rootObject, EPackage ePackage, File outputFile) throws IOException {
@@ -115,6 +118,12 @@ public class KModelToEcoreInstanceTransformer {
         String key = getObjectKey(dataObject);
         EObject eObject = eObjectMap.get(key);
         EClass eClass = eObject.eClass();
+
+        // synthethic identifier
+        EStructuralFeature idFeature = eClass.getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
+        if (idFeature != null && dataObject.getId() != null) {
+            eObject.eSet(idFeature, dataObject.getId());
+        }
 
         // primitive properties
         for (SimplePropertyObject prop : dataObject.getProperties()) {

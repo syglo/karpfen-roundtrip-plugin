@@ -42,7 +42,7 @@
         </style>
       </edgeMappings>
       <containerMappings name="EObjectNode" semanticCandidatesExpression="aql:self.eAllContents(ecore::EObject)->including(self)" domainClass="ecore.EObject">
-        <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.eClass().name + if self.eClass().getEStructuralFeature('name') &lt;> null and selfaql:self.eClass().name + if self.eClass().getEStructuralFeature('name') &lt;> null and self.eGet(self.eClass().getEStructuralFeature('name')) &lt;> null then ' : ' + self.eGet(self.eClass().getEStructuralFeature('name')).toString() else '' endif">
+        <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:if self.eClass().getEStructuralFeature('__id__') &lt;> null and self.eGet(self.eClass().getEStructuralFeature('__id__')) &lt;> '' then self.eGet(self.eClass().getEStructuralFeature('__id__')).toString() + ' : ' + self.eClass().name else self.eClass().name endif">
           <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
           <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
           <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>

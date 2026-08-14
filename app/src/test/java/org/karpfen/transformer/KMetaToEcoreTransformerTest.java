@@ -1,11 +1,14 @@
 package org.karpfen.transformer;
 
 import dsl.textual.KmetaDSLConverter;
+import dsl.textual.KmodelDSLConverter;
+import instance.Model;
 import meta.Metamodel;
 
 import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EcorePackage;
@@ -16,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -96,10 +100,16 @@ public class KMetaToEcoreTransformerTest {
     @Test
     void testEcoreFileSerialization() throws IOException {
         String kmetaFilePath = "../example/metamodel_dsl_example.kmeta";
-        Metamodel metamodel = KmetaDSLConverter.INSTANCE.parseKmetaFile(kmetaFilePath);
+        String kmodelFilePath = "../example/model_dsl_example.kmodel";
 
+        Metamodel metamodel = KmetaDSLConverter.INSTANCE.parseKmetaFile(kmetaFilePath);
+        assertNotNull(metamodel, "Karpfen Metamodel AST must not be null");
+
+        Model model = KmodelDSLConverter.INSTANCE.parseKmodelFile(kmodelFilePath, metamodel);
+        assertNotNull(model, "Karpfen Metamodel instance AST must not be null");
+        
         KMetaToEcoreTransformer transformer = new KMetaToEcoreTransformer();
-        EPackage ePackage = transformer.transform(metamodel, "robotdomain", "http://github/karpfen", "robotdomain");
+        EPackage ePackage = transformer.transform(metamodel, "roomdomain", "http://github/karpfen", "roomdomain");
 
         // Tmp dir local to project
         File outputDir = new File("build/test-outputs");
@@ -107,12 +117,22 @@ public class KMetaToEcoreTransformerTest {
             outputDir.mkdirs();
         }
 
-        File targetFile = new File(outputDir, "robotdomain.ecore");
+        File targetFile = new File(outputDir, "roomdomain.ecore");
         transformer.saveToEcoreFile(ePackage, targetFile);
+        assertTrue(targetFile.exists() && targetFile.length() > 0);
 
-        assertTrue(targetFile.exists());
-        assertTrue(targetFile.length() > 0);
+        // Transform model to emf eobjects and serialize .xmi instance
+        KModelToEcoreInstanceTransformer instanceTransformer = new KModelToEcoreInstanceTransformer();
+        List<EObject> rootObjects = instanceTransformer.transform(model, ePackage);
+        assertEquals(1, rootObjects.size(), "Room APB 2101 should be single root object");
 
-        System.out.println("File serialization tmp artifact: " + targetFile.getAbsolutePath());
+        File xmiTargetFile = new File(outputDir, "roomdomain_instance.xmi");
+        instanceTransformer.saveToXmiFile(rootObjects, ePackage, xmiTargetFile);
+
+        assertTrue(xmiTargetFile.exists(), "Target .xmi file should exists");
+        assertTrue(xmiTargetFile.length() > 0, "Serialize .xmi should not be empty");
+
+        System.out.println("[Karpfen] Metamodel .ecore generated at: " + targetFile.getAbsolutePath());
+        System.out.println("[Karpfen] Instance .xmi generated at: " + xmiTargetFile.getAbsolutePath());
     }
 }
