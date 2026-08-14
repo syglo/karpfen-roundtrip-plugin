@@ -95,8 +95,10 @@ public class OdesignGenerator {
         viewpoint.setName("KarpfenViewpoint");
         viewpoint.setLabel("Karpfen Visualizations");
         group.getOwnedViewpoints().add(viewpoint);
-
-        // KMeta class diagram
+        
+        ///////
+        // !!! KMeta class diagram
+        ///////
         DiagramDescription kmetaDiagram = DescriptionFactory.eINSTANCE.createDiagramDescription();
         kmetaDiagram.setName("KMetaClassDiagram");
         kmetaDiagram.setLabel("KMeta Class Diagram");
@@ -116,7 +118,8 @@ public class OdesignGenerator {
         classStyle.setShowIcon(true);
         classStyle.setBorderSizeComputationExpression("1");
         eClassNode.setStyle(classStyle);
-        kmetaDiagram.getContainerMappings().add(eClassNode);
+
+        kmetaDiagram.getContainerMappings().add(eClassNode); // save
 
         // Class attributes subnodes - EAttribute in EClass
         NodeMapping attributeNode = DescriptionFactory.eINSTANCE.createNodeMapping();
@@ -151,7 +154,8 @@ public class OdesignGenerator {
         hasEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         hasEdgeStyle.setSizeComputationExpression("1");
         hasEdge.setStyle(hasEdgeStyle);
-        kmetaDiagram.getEdgeMappings().add(hasEdge);
+
+        kmetaDiagram.getEdgeMappings().add(hasEdge); // save
 
         // Edge knows - association reference
         EdgeMapping knowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
@@ -169,8 +173,63 @@ public class OdesignGenerator {
         knowsEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         knowsEdgeStyle.setSizeComputationExpression("1");
         knowsEdge.setStyle(knowsEdgeStyle);
-        kmetaDiagram.getEdgeMappings().add(knowsEdge);
 
+        kmetaDiagram.getEdgeMappings().add(knowsEdge); // save
+
+
+        ///////
+        // !!! KModel object diagram
+        ///////
+        DiagramDescription kmodelDiagram = DescriptionFactory.eINSTANCE.createDiagramDescription();
+        kmodelDiagram.setName("KModelObjectDiagram");
+        kmodelDiagram.setLabel("KModel Object Diagram");
+        kmodelDiagram.setDomainClass("ecore.EObject");
+        kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
+        viewpoint.getOwnedRepresentations().add(kmodelDiagram);
+
+        // Object container node
+        ContainerMapping eObjectNode = DescriptionFactory.eINSTANCE.createContainerMapping();
+        eObjectNode.setName("EObjectNode");
+        eObjectNode.setDomainClass("ecore.EObject");
+        eObjectNode.setSemanticCandidatesExpression("aql:self.eAllContents(ecore::EObject)->including(self)");
+
+        FlatContainerStyleDescription objStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
+        objStyle.setLabelExpression("aql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and selfaql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and self.eGet(self.eClass().getEStructuralFeature('name')) <> null then ' : ' + self.eGet(self.eClass().getEStructuralFeature('name')).toString() else '' endif");
+        objStyle.setShowIcon(true);
+        objStyle.setBorderSizeComputationExpression("1");
+        eObjectNode.setStyle(objStyle);
+        kmodelDiagram.getContainerMappings().add(eObjectNode);
+
+        // Edge has
+        EdgeMapping instanceHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        instanceHasEdge.setName("InstanceContainmentEdge");
+        instanceHasEdge.setUseDomainElement(false);
+        instanceHasEdge.getSourceMapping().add(eObjectNode);
+        instanceHasEdge.getTargetMapping().add(eObjectNode);
+        instanceHasEdge.setTargetFinderExpression("aql:self.eContents()");
+
+        EdgeStyleDescription instanceHasStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        instanceHasStyle.setLineStyle(LineStyle.SOLID_LITERAL);
+        instanceHasStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
+        instanceHasStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        instanceHasStyle.setSizeComputationExpression("1");
+        instanceHasEdge.setStyle(instanceHasStyle);
+        kmodelDiagram.getEdgeMappings().add(instanceHasEdge);
+
+        // Edge knows
+        EdgeMapping instanceKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        instanceKnowsEdge.setName("InstanceReferenceEdge");
+        instanceKnowsEdge.setUseDomainElement(false);
+        instanceKnowsEdge.getSourceMapping().add(eObjectNode);
+        instanceKnowsEdge.getTargetMapping().add(eObjectNode);
+        instanceKnowsEdge.setTargetFinderExpression("aql:self.eCrossReferences()");
+
+        EdgeStyleDescription instanceKnowsStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        instanceKnowsStyle.setLineStyle(LineStyle.DASH_LITERAL);
+        instanceKnowsStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        instanceKnowsStyle.setSizeComputationExpression("1");
+        instanceKnowsEdge.setStyle(instanceKnowsStyle);
+        kmodelDiagram.getEdgeMappings().add(instanceKnowsEdge);
 
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();

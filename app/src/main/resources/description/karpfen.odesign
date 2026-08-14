@@ -29,5 +29,26 @@
         </style>
       </containerMappings>
     </ownedRepresentations>
+    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject">
+      <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
+      <edgeMappings name="InstanceContainmentEdge" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eContents()">
+        <style sourceArrow="FillDiamond">
+          <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+        </style>
+      </edgeMappings>
+      <edgeMappings name="InstanceReferenceEdge" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eCrossReferences()">
+        <style lineStyle="dash">
+          <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+        </style>
+      </edgeMappings>
+      <containerMappings name="EObjectNode" semanticCandidatesExpression="aql:self.eAllContents(ecore::EObject)->including(self)" domainClass="ecore.EObject">
+        <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.eClass().name + if self.eClass().getEStructuralFeature('name') &lt;> null and selfaql:self.eClass().name + if self.eClass().getEStructuralFeature('name') &lt;> null and self.eGet(self.eClass().getEStructuralFeature('name')) &lt;> null then ' : ' + self.eGet(self.eClass().getEStructuralFeature('name')).toString() else '' endif">
+          <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+          <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+          <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>
+          <foregroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='light_gray']"/>
+        </style>
+      </containerMappings>
+    </ownedRepresentations>
   </ownedViewpoints>
 </description:Group>

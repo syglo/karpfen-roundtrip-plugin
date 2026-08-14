@@ -23,6 +23,7 @@ import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -32,7 +33,7 @@ public class KModelToEcoreInstanceTransformer {
 
     private final Map<String, EObject> eObjectMap = new HashMap<>();
 
-    public Resource transformAndSave(Model kModel, EPackage ePackage, File outputFile) throws IOException {
+    public List<EObject> transform(Model kModel, EPackage ePackage) {
         eObjectMap.clear();
 
         // Convert Karpfen DataObjects with EME EObject instances
@@ -45,32 +46,54 @@ public class KModelToEcoreInstanceTransformer {
             populateEObjectFeatures(dataObject, ePackage);
         }
 
-        // Serialize to XMI
+        // Collect root objects
+        List<EObject> rootEObjects = new ArrayList<>();
+        for (DataObject rootDataObject : kModel.getObjects()) {
+            String key = getObjectKey(rootDataObject);
+            EObject rootEObject = eObjectMap.get(key);
+            if (rootEObject != null && rootEObject.eContainer() == null && !rootEObjects.contains(rootEObject)) {
+                rootEObjects.add(rootEObject);
+            }
+        }
+
+        return rootEObjects;
+    }
+
+    public void saveToXmiFile(List<EObject> rootObjects, EPackage ePackage, File outputFile) throws IOException {
         ResourceSet resourceSet = new ResourceSetImpl();
         resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
             .put("xmi", new XMIResourceFactoryImpl());
+        resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
+            .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+
         resourceSet.getPackageRegistry().put(ePackage.getNsURI(), ePackage);
+
+        File parentDir = outputFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
 
         URI fileUri = URI.createFileURI(outputFile.getAbsolutePath());
         Resource resource = resourceSet.createResource(fileUri);
 
-        // Add root objects to it
-        for (DataObject rootDataObject : kModel.getObjects()) {
-            EObject rootEObject = eObjectMap.get(rootDataObject.getId());
-            if (rootEObject != null && rootEObject.eContainer() == null) {
-                resource.getContents().add(rootEObject);
-            }
-        }
-
+        resource.getContents().addAll(rootObjects);
         resource.save(Collections.emptyMap());
-        return resource;
+    }
+
+    public void saveToXmiFile(EObject rootObject, EPackage ePackage, File outputFile) throws IOException {
+        saveToXmiFile(Collections.singletonList(rootObject), ePackage, outputFile);
     }
 
     private void instantiateEObjects(DataObject dataObject, EPackage ePackage) {
         EClass eClass = (EClass) ePackage.getEClassifier(dataObject.getOfType().getName());
-        EObject eObject = ePackage.getEFactoryInstance().create(eClass);
+        if (eClass == null) {
+            throw new IllegalArgumentException(
+                "Metamodel EClass not found for type: " + dataObject.getOfType().getName()
+            );
+        }
 
-        String key = dataObject.getId().isEmpty() ? String.valueOf(dataObject.hashCode()) : dataObject.getId();
+        EObject eObject = ePackage.getEFactoryInstance().create(eClass);
+        String key = getObjectKey(dataObject);
         eObjectMap.put(key, eObject);
 
         // Instantiate embedded has objects recursively
@@ -89,7 +112,7 @@ public class KModelToEcoreInstanceTransformer {
     }
 
     private void populateEObjectFeatures(DataObject dataObject, EPackage ePackage) {
-        String key = dataObject.getId().isEmpty() ? String.valueOf(dataObject.hashCode()) : dataObject.getId();
+        String key = getObjectKey(dataObject);
         EObject eObject = eObjectMap.get(key);
         EClass eClass = eObject.eClass();
 
@@ -100,32 +123,58 @@ public class KModelToEcoreInstanceTransformer {
                 if (prop instanceof SimpleAtomicPropertyObject atomic) { // primitive
                     eObject.eSet(feature, atomic.getValue());
                 } else if (prop instanceof SimpleListPropertyObject listProp) { // list
-                    eObject.eSet(feature, listProp.getValues());
+                    @SuppressWarnings("unchecked")
+                    List<Object> targetList = (List<Object>) eObject.eGet(feature);
+                    targetList.clear();
+                    targetList.addAll(listProp.getValues());
                 }
             }
         }
 
         // relations has / knows
+        // populate relations first
         for (ClassTypePropertyObject rel : dataObject.getRelations()) {
             EReference reference = (EReference) eClass.getEStructuralFeature(rel.getKey());
             if (reference != null) {
                 if (rel instanceof ClassTypeAtomicPropertyObject atomicRel && atomicRel.getValue() != null) {
-                    String targetKey = atomicRel.getValue().getId().isEmpty() ?
-                        String.valueOf(atomicRel.getValue().hashCode()) : atomicRel.getValue().getId();
-                    
+                    String targetKey = getObjectKey(atomicRel.getValue());
                     eObject.eSet(reference, eObjectMap.get(targetKey));
                 } else if (rel instanceof ClassTypeListPropertyObject listRel) {
                     @SuppressWarnings("unchecked")
                     List<EObject> eList = (List<EObject>) eObject.eGet(reference);
+                    eList.clear();
                     for (DataObject target : listRel.getValues()) {
-                        String targetKey = target.getId().isEmpty() ?
-                            String.valueOf(target.hashCode()) : target.getId();
-                        
-                        eList.add(eObjectMap.get(targetKey));
+                        String targetKey = getObjectKey(target);
+                        EObject targetEObj = eObjectMap.get(targetKey);
+                        if (targetEObj != null && !eList.contains(targetEObj)) {
+                            eList.add(targetEObj);
+                        }
                     }
                 }
             }
-
         }
+
+        // then traverse down has / children to populate their properties
+        for (ClassTypePropertyObject rel : dataObject.getRelations()) {
+            if (rel.getPropertyType().getAssociationType() == meta.AssociationType.EMBEDDED) {
+                if (rel instanceof ClassTypeAtomicPropertyObject atomicRel && atomicRel.getValue() != null) {
+                    populateEObjectFeatures(atomicRel.getValue(), ePackage);
+                } else if (rel instanceof ClassTypeListPropertyObject listRel) {
+                    for (DataObject child : listRel.getValues()) {
+                        populateEObjectFeatures(child, ePackage);
+                    }
+                }
+            }
+        }
+    }
+
+    private String getObjectKey(DataObject dataObject) {
+        return (dataObject.getId() != null && !dataObject.getId().isEmpty())
+            ? dataObject.getId()
+            : String.valueOf(System.identityHashCode(dataObject));
+    }
+
+    public Map<String, EObject> getEObjectMap() {
+        return Collections.unmodifiableMap(eObjectMap);
     }
 }

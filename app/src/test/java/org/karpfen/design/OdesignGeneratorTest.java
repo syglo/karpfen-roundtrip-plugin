@@ -12,9 +12,12 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
+import org.eclipse.sirius.diagram.ContainerLayout;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DescriptionPackage;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
+import org.eclipse.sirius.diagram.description.EdgeMapping;
+import org.eclipse.sirius.diagram.description.NodeMapping;
 import org.eclipse.sirius.viewpoint.ViewpointPackage;
 import org.eclipse.sirius.viewpoint.description.Group;
 import org.eclipse.sirius.viewpoint.description.RepresentationDescription;
@@ -83,27 +86,56 @@ public class OdesignGeneratorTest {
         assertEquals("KarpfenGroup", rootGroup.getName());
 
         // Viewpoint exists
-        assertEquals(1, rootGroup.getOwnedViewpoints().size(), "Group must contain one Viewpoint.");
         Viewpoint viewpoint = rootGroup.getOwnedViewpoints().get(0);
         assertEquals("KarpfenViewpoint", viewpoint.getName());
         assertEquals("Karpfen Visualizations", viewpoint.getLabel());
+        assertEquals(2, viewpoint.getOwnedRepresentations().size(), "odesign contains kmeta and kmodel viewpoints");
 
+        // !! KMETA
         // Sirius Diagram Description for KMeta Class Diagram
-        assertEquals(1, viewpoint.getOwnedRepresentations().size(), "Viewpoint must have one Representation.");
-        RepresentationDescription representation = viewpoint.getOwnedRepresentations().get(0);
-        assertTrue(representation instanceof DiagramDescription, "Representation must be a DiagramDescription.");
-        
-        DiagramDescription kmetaDiagram = (DiagramDescription) representation;
+        DiagramDescription kmetaDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
+            .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
         assertEquals("KMetaClassDiagram", kmetaDiagram.getName());
         assertEquals("ecore.EPackage", kmetaDiagram.getDomainClass());
+        assertEquals(1, kmetaDiagram.getContainerMappings().size());
 
-        // Check Node / Container Mapping
-        assertEquals(1, kmetaDiagram.getContainerMappings().size(), "Diagram must contain one container mapping.");
         ContainerMapping eClassNode = kmetaDiagram.getContainerMappings().get(0);
         assertEquals("EClassNode", eClassNode.getName());
         assertEquals("ecore.EClass", eClassNode.getDomainClass());
         assertEquals("aql:self.eClassifiers->filter(ecore::EClass)", eClassNode.getSemanticCandidatesExpression());
-        assertNotNull(eClassNode.getStyle(), "Container style must be configured.");
+        assertEquals(ContainerLayout.LIST, eClassNode.getChildrenPresentation());
+
+        // check EAttribute Subnode Mapping
+        assertEquals(1, eClassNode.getSubNodeMappings().size());
+        NodeMapping attrNode = eClassNode.getSubNodeMappings().get(0);
+        assertEquals("EAttributeNode", attrNode.getName());
+        assertEquals("aql:self.eAttributes", attrNode.getSemanticCandidatesExpression());
+
+        // Check Edges
+        assertEquals(2, kmetaDiagram.getEdgeMappings().size());
+        EdgeMapping hasEdge = kmetaDiagram.getEdgeMappings().stream()
+            .filter(e -> e.getName().equals("HasCompositionEdge")).findFirst().orElseThrow();
+        assertTrue(hasEdge.isUseDomainElement());
+        assertEquals("aql:self.eContainingClass", hasEdge.getSourceFinderExpression());
+        assertEquals("aql:self.eType", hasEdge.getTargetFinderExpression());
+
+        EdgeMapping knowsEdge = kmetaDiagram.getEdgeMappings().stream()
+            .filter(e -> e.getName().equals("KnowsAssociationEdge")).findFirst().orElseThrow();
+        assertTrue(knowsEdge.isUseDomainElement());
+
+        // !! KMODEL
+        DiagramDescription kmodelDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
+            .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
+        assertEquals("ecore.EObject", kmodelDiagram.getDomainClass());
+        assertEquals(1, kmodelDiagram.getContainerMappings().size());
+
+        ContainerMapping eObjNode = kmodelDiagram.getContainerMappings().get(0);
+        assertEquals("EObjectNode", eObjNode.getName());
+        assertEquals("aql:self.eAllContents(ecore::EObject)->including(self)", eObjNode.getSemanticCandidatesExpression());
+
+        assertEquals(2, kmodelDiagram.getEdgeMappings().size());
+        assertTrue(kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceContainmentEdge")));
+        assertTrue(kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceReferenceEdge")));
     }
 
     @Test
