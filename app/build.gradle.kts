@@ -14,40 +14,6 @@ plugins {
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
-    // Eclipse Maven
-    //p2AsMaven {
-        //url("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
-    //}
-    // Official Sirius 7.5.0 P2 update site
-    //p2AsMaven {
-        //url("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
-    //}
-
-    /*
-    maven {
-        url = uri("https://repo.eclipse.org/content/groups/releases/")
-        metadataSources {
-            mavenPom()
-            artifact()
-        }
-    }
-    */
-    //maven {
-        //url = uri("https://repo.eclipse.org/content/repositories/sirius-releases/")
-    //}
-    //maven {
-        //url = uri("https://repo.eclipse.org/content/groups/releases/")
-    //}
-    /*
-    maven {
-        url = uri("https://repo.eclipse.org/content/repositories/sirius-maven2-snapshots/")
-        
-        metadataSources {
-            mavenPom()
-            artifact()
-        }
-    }
-    */
     flatDir {
         dirs(rootProject.file("libs"))
     }
@@ -73,13 +39,6 @@ dependencies {
 
     // Eclipse Sirius .odesign
     //https://repo.eclipse.org/#browse/browse:sirius-maven2-snapshots:org%2Feclipse%2Fsirius%2Forg.eclipse.sirius%2F7.5.0-SNAPSHOT%2F7.5.0-20251114.144540-27
-    //implementation("org.eclipse.sirius:org.eclipse.sirius:7.5.0-20251114.144540-27")
-    //implementation("org.eclipse.sirius:org.eclipse.sirius:7.5.0-SNAPSHOT")
-    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram:7.5.0-SNAPSHOT")
-    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram.formatdata:7.5.0-SNAPSHOT")
-    //implementation("org.eclipse.sirius:org.eclipse.sirius:7.5.0")
-    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram:7.5.0")
-    //implementation("org.eclipse.sirius:org.eclipse.sirius.diagram.formatdata:7.5.0")
     //implementation("sirius-deps:org.eclipse.sirius:7.5.0")
     //implementation("sirius-deps:org.eclipse.sirius.diagram:7.5.0")               
     //implementation("sirius-deps:org.eclipse.sirius.diagram.formatdata:7.5.0")
@@ -166,4 +125,16 @@ tasks.register<Exec>("setupKarpfenJar") {
 
 tasks.named("compileJava") {
     dependsOn("setupKarpfenJar")
+}
+
+// Task for .odesign generatorion
+tasks.register<JavaExec>("generateOdesign") {
+    group = "build"
+    description = "Generates karpfen.odesign directly into src/main/resources/description/"
+    
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.karpfen.design.OdesignGenerator")
+    
+    // Tmp change directories
+    workingDir = projectDir
 }

@@ -105,4 +105,14 @@ public class OdesignGeneratorTest {
         assertEquals("aql:self.eClassifiers->filter(ecore::EClass)", eClassNode.getSemanticCandidatesExpression());
         assertNotNull(eClassNode.getStyle(), "Container style must be configured.");
     }
+
+    @Test
+    void testOdesignSave() throws IOException {
+        File generatedFile = OdesignGenerator.generateToResources();
+
+        assertNotNull(generatedFile, "Generated file should not be null");
+        assertTrue(generatedFile.exists(), "karfpen.odesign exist in src/main/resources/description/");
+        assertTrue(generatedFile.length() > 0, "karpfen.odesign not empty");
+        assertTrue(generatedFile.getAbsolutePath().endsWith("description" + File.separator + "karfpen.odesign"));
+    }
 }

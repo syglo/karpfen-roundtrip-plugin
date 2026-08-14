@@ -5,6 +5,7 @@
    <extension point="org.eclipse.sirius.componentization">
       <component
             id="org.karpfen.roundtrip.design"
+            name="karpfen"
             viewpointRegistryModel="description/karpfen.odesign">
       </component>
    </extension>
