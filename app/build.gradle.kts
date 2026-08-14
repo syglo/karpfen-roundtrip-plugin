@@ -5,6 +5,30 @@
  * For more details on building Java & JVM projects, please refer to https://docs.gradle.org/9.6.1/userguide/building_java_projects.html in the Gradle documentation.
  */
 
+import org.gradle.internal.os.OperatingSystem
+
+fun getSwtPlatform(): String {
+    val os = OperatingSystem.current()
+    val arch = System.getProperty("os.arch")
+    return when {
+        os.isWindows -> "win32.win32.x86_64"
+        os.isMacOsX -> if (arch == "aarch64") "cocoa.macosx.aarch64" else "cocoa.macosx.x86_64"
+        os.isLinux -> if (arch == "aarch64") "gtk.linux.aarch64" else "gtk.linux.x86_64"
+        else -> "win32.win32.x86_64"
+    }
+}
+
+// Eclipse SWT POM (Maven) resolves OS but it conflicts with Gradle, and to resolve it in Gradle we compute it ${osgi.platform}
+allprojects {
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.name == "org.eclipse.swt.\${osgi.platform}") {
+                useTarget("org.eclipse.platform:org.eclipse.swt.${getSwtPlatform()}:${requested.version}")
+            }
+        }
+    }
+}
+
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
@@ -29,6 +53,12 @@ p2deps {
 }
 
 dependencies {
+    // OSGI runtime, BundleActivator
+    implementation("org.eclipse.platform:org.eclipse.osgi:3.20.0")
+    implementation("org.eclipse.platform:org.eclipse.core.runtime:3.31.0")
+    implementation("org.eclipse.platform:org.eclipse.core.resources:3.20.0")
+    implementation("org.eclipse.platform:org.eclipse.ui.workbench:3.131.0")
+
     // EMF standalone dependencies
     // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.ecore
     implementation("org.eclipse.emf:org.eclipse.emf.ecore:2.42.0")
@@ -86,23 +116,6 @@ tasks.named<Test>("test") {
     }
 }
 
-// Generate OSGi plugin metadata into META-INF/MANIFEST.MF inside the output JAR
-tasks.jar {
-    manifest {
-        attributes(
-            mapOf(
-                "Manifest-Version" to "1.0",
-                "Bundle-ManifestVersion" to "2",
-                "Bundle-Name" to "Karpfen Visual Roundtrip Plugin",
-                "Bundle-SymbolicName" to "org.karpfen.roundtrip.plugin;singleton:=true",
-                "Bundle-Version" to "1.0.0.qualifier",
-                "Require-Bundle" to "org.eclipse.emf.ecore, org.eclipse.emf.ecore.xmi, org.eclipse.sirius, org.eclipse.sirius.diagram, org.eclipse.elk.sdk",
-                "Export-Package" to "org.karpfen.transformer"
-            )
-        )
-    }
-}
-
 // Compiles karpfen jar if not existing
 tasks.register<Exec>("setupKarpfenJar") {
     val scriptFile = rootProject.file("setup-karpfen.ps1")
@@ -128,13 +141,73 @@ tasks.named("compileJava") {
 }
 
 // Task for .odesign generatorion
-tasks.register<JavaExec>("generateOdesign") {
+val generateOdesignTask = tasks.register<JavaExec>("generateOdesign") {
     group = "build"
     description = "Generates karpfen.odesign directly into src/main/resources/description/"
-    
+ 
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("org.karpfen.design.OdesignGenerator")
-    
     // Tmp change directories
     workingDir = projectDir
+
+    dependsOn(tasks.named("compileJava"))
+}
+
+// Generate OSGi plugin metadata into META-INF/MANIFEST.MF inside the output JAR
+tasks.named<Jar>("jar") {
+    dependsOn(generateOdesignTask)
+    archiveFileName.set("org.karpfen.roundtrip.plugin_1.0.0.jar")
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // plugin.xml root
+    from(project.file("plugin.xml"))
+    from(rootProject.file("plugin.xml"))
+
+    // odesign
+    from(project.file("src/main/resources/description")) {
+        into("description")
+    }
+
+    // bundle all dependencies
+    // karpfen_tools, kotlin stdlib, antlr, json.
+    // exclude eclipse/emf/sirius, its already in Eclipse Modelling Tools (runtime)
+    from({
+        configurations.runtimeClasspath.get().filter {
+            file -> !file.name.startsWith("org.eclipse.")
+        }.map { zipTree(it) }
+    }) {
+        // exclude metas from thirdparties - osgi verification failures
+        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/MANIFEST.MF", "META-INF/INDEX.LIST")
+    }
+
+    // osgi manifest
+    manifest {
+        attributes(
+            mapOf(
+                "Manifest-Version" to "1.0",
+                "Bundle-ManifestVersion" to "2",
+                "Bundle-Name" to "Karpfen Visual Roundtrip Plugin",
+                "Bundle-SymbolicName" to "org.karpfen.roundtrip.plugin;singleton:=true",
+                "Bundle-Version" to "1.0.0",
+                "Bundle-RequiredExecutionEnvironment" to "JavaSE-21",
+                "Bundle-Activator" to "org.karpfen.design.KarpfenPluginActivator",
+                "Require-Bundle" to listOf(
+                    "org.eclipse.osgi",
+                    "org.eclipse.core.runtime",
+                    "org.eclipse.core.resources",
+                    "org.eclipse.ui",
+                    "org.eclipse.ui.workbench",
+                    "org.eclipse.emf.ecore",
+                    "org.eclipse.emf.ecore.xmi",
+                    "org.eclipse.sirius",
+                    "org.eclipse.sirius.diagram",
+                    "org.eclipse.sirius.diagram.ui",
+                    "org.eclipse.sirius.ui",
+                    //"org.eclipse.elk.sdk",
+                ).joinToString(","),
+                "Export-Package" to "org.karpfen.transformer, org.karpfen.design",
+            )
+        )
+    }
 }
