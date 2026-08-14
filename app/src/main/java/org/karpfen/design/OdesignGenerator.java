@@ -8,15 +8,28 @@ import java.util.Collections;
 
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EPackage;
+import org.eclipse.emf.ecore.EcorePackage;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
+import org.eclipse.sirius.diagram.ContainerLayout;
+import org.eclipse.sirius.diagram.DiagramPackage;
+import org.eclipse.sirius.diagram.EdgeArrows;
+import org.eclipse.sirius.diagram.LabelPosition;
+import org.eclipse.sirius.diagram.LineStyle;
+import org.eclipse.sirius.diagram.ResizeKind;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
+import org.eclipse.sirius.diagram.description.EdgeMapping;
+import org.eclipse.sirius.diagram.description.NodeMapping;
 import org.eclipse.sirius.diagram.description.style.FlatContainerStyleDescription;
+import org.eclipse.sirius.diagram.description.style.NodeStyleDescription;
+import org.eclipse.sirius.diagram.description.style.EdgeStyleDescription;
 import org.eclipse.sirius.diagram.description.style.StyleFactory;
+import org.eclipse.sirius.diagram.description.style.StylePackage;
 import org.eclipse.sirius.diagram.description.DescriptionFactory;
+import org.eclipse.sirius.viewpoint.LabelAlignment;
 import org.eclipse.sirius.viewpoint.ViewpointPackage;
 import org.eclipse.sirius.viewpoint.description.Group;
 import org.eclipse.sirius.viewpoint.description.Viewpoint;
@@ -31,16 +44,24 @@ public class OdesignGenerator {
             .put("odesign", new XMIResourceFactoryImpl());
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
             .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+
+        // ECore deps
+        EPackage.Registry.INSTANCE.put(EcorePackage.eNS_URI, EcorePackage.eINSTANCE);
         
+        // Sirius viewpoint
         EPackage.Registry.INSTANCE.put(
             org.eclipse.sirius.viewpoint.description.DescriptionPackage.eNS_URI,
             org.eclipse.sirius.viewpoint.description.DescriptionPackage.eINSTANCE
         );
         EPackage.Registry.INSTANCE.put(ViewpointPackage.eNS_URI, ViewpointPackage.eINSTANCE);
+
+        // Sirius diagram and style
         EPackage.Registry.INSTANCE.put(
             org.eclipse.sirius.diagram.description.DescriptionPackage.eNS_URI,
             org.eclipse.sirius.diagram.description.DescriptionPackage.eINSTANCE
         );
+        EPackage.Registry.INSTANCE.put(DiagramPackage.eNS_URI, DiagramPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(StylePackage.eNS_URI, StylePackage.eINSTANCE);
     }
 
     // Save odesign in src/main/resources/ to be packaged in .jar
@@ -78,19 +99,78 @@ public class OdesignGenerator {
         // KMeta class diagram
         DiagramDescription kmetaDiagram = DescriptionFactory.eINSTANCE.createDiagramDescription();
         kmetaDiagram.setName("KMetaClassDiagram");
+        kmetaDiagram.setLabel("KMeta Class Diagram");
         kmetaDiagram.setDomainClass("ecore.EPackage");
+        kmetaDiagram.getMetamodel().add(EcorePackage.eINSTANCE); // aql requires it
         viewpoint.getOwnedRepresentations().add(kmetaDiagram);
 
-        // Node mapping for EClass
+        // Class container node - EClass
         ContainerMapping eClassNode = DescriptionFactory.eINSTANCE.createContainerMapping();
         eClassNode.setName("EClassNode");
         eClassNode.setDomainClass("ecore.EClass");
         eClassNode.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass)");
+        eClassNode.setChildrenPresentation(ContainerLayout.LIST);
 
-        FlatContainerStyleDescription style = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
-        eClassNode.setStyle(style);
-
+        FlatContainerStyleDescription classStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
+        classStyle.setLabelExpression("aql:self.name");
+        classStyle.setShowIcon(true);
+        classStyle.setBorderSizeComputationExpression("1");
+        eClassNode.setStyle(classStyle);
         kmetaDiagram.getContainerMappings().add(eClassNode);
+
+        // Class attributes subnodes - EAttribute in EClass
+        NodeMapping attributeNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        attributeNode.setName("EAttributeNode");
+        attributeNode.setDomainClass("ecore.EAttribute");
+        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes");
+
+        NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        attrStyle.setLabelExpression("aql:self.name + ' : ' + if self.eType <> null then self.eType.name else 'EString' endif");
+        attrStyle.setShowIcon(true);
+        attrStyle.setLabelAlignment(LabelAlignment.LEFT);
+        attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        attrStyle.setBorderSizeComputationExpression("0");
+        attrStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        attributeNode.setStyle(attrStyle);
+        eClassNode.getSubNodeMappings().add(attributeNode);
+
+        // Edge has - composition reference
+        EdgeMapping hasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        hasEdge.setName("HasCompositionEdge");
+        hasEdge.setDomainClass("ecore.EReference");
+        hasEdge.setUseDomainElement(true);
+        hasEdge.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)");
+        hasEdge.getSourceMapping().add(eClassNode);
+        hasEdge.getTargetMapping().add(eClassNode);
+        hasEdge.setSourceFinderExpression("aql:self.eContainingClass");
+        hasEdge.setTargetFinderExpression("aql:self.eType");
+
+        EdgeStyleDescription hasEdgeStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        hasEdgeStyle.setLineStyle(LineStyle.SOLID_LITERAL);
+        hasEdgeStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
+        hasEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        hasEdgeStyle.setSizeComputationExpression("1");
+        hasEdge.setStyle(hasEdgeStyle);
+        kmetaDiagram.getEdgeMappings().add(hasEdge);
+
+        // Edge knows - association reference
+        EdgeMapping knowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        knowsEdge.setName("KnowsAssociationEdge");
+        knowsEdge.setDomainClass("ecore.EReference");
+        knowsEdge.setUseDomainElement(true);
+        knowsEdge.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not r.containment)");
+        knowsEdge.getSourceMapping().add(eClassNode);
+        knowsEdge.getTargetMapping().add(eClassNode);
+        knowsEdge.setSourceFinderExpression("aql:self.eContainingClass");
+        knowsEdge.setTargetFinderExpression("aql:self.eType");
+
+        EdgeStyleDescription knowsEdgeStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        knowsEdgeStyle.setLineStyle(LineStyle.DASH_LITERAL);
+        knowsEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        knowsEdgeStyle.setSizeComputationExpression("1");
+        knowsEdge.setStyle(knowsEdgeStyle);
+        kmetaDiagram.getEdgeMappings().add(knowsEdge);
+
 
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();

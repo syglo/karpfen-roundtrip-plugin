@@ -1,9 +1,27 @@
 <?xml version="1.0" encoding="ASCII"?>
 <description:Group xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:description="http://www.eclipse.org/sirius/description/1.1.0" xmlns:description_1="http://www.eclipse.org/sirius/diagram/description/1.1.0" xmlns:style="http://www.eclipse.org/sirius/diagram/description/style/1.1.0" name="KarpfenGroup">
   <ownedViewpoints name="KarpfenViewpoint" label="Karpfen Visualizations">
-    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KMetaClassDiagram" domainClass="ecore.EPackage">
-      <containerMappings name="EClassNode" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass)" domainClass="ecore.EClass">
-        <style xsi:type="style:FlatContainerStyleDescription">
+    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KMetaClassDiagram" label="KMeta Class Diagram" domainClass="ecore.EPackage">
+      <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
+      <edgeMappings name="HasCompositionEdge" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
+        <style sourceArrow="FillDiamond">
+          <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+        </style>
+      </edgeMappings>
+      <edgeMappings name="KnowsAssociationEdge" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not r.containment)" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
+        <style lineStyle="dash">
+          <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+        </style>
+      </edgeMappings>
+      <containerMappings name="EClassNode" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass)" domainClass="ecore.EClass" childrenPresentation="List">
+        <subNodeMappings name="EAttributeNode" semanticCandidatesExpression="aql:self.eAttributes" domainClass="ecore.EAttribute">
+          <style xsi:type="style:SquareDescription" labelExpression="aql:self.name + ' : ' + if self.eType &lt;> null then self.eType.name else 'EString' endif" labelAlignment="LEFT" labelPosition="node">
+            <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            <color xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+          </style>
+        </subNodeMappings>
+        <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.name">
           <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
           <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
           <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>
