@@ -131,7 +131,7 @@ public class OdesignGeneratorTest {
 
         ContainerMapping eObjNode = kmodelDiagram.getContainerMappings().get(0);
         assertEquals("EObjectNode", eObjNode.getName());
-        assertEquals("aql:self.eAllContents(ecore::EObject)->including(self)", eObjNode.getSemanticCandidatesExpression());
+        assertEquals("aql:self.eAllContents()->including(self)", eObjNode.getSemanticCandidatesExpression());
 
         assertEquals(2, kmodelDiagram.getEdgeMappings().size());
         assertTrue(kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceContainmentEdge")));

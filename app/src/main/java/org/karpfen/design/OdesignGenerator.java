@@ -32,6 +32,7 @@ import org.eclipse.sirius.diagram.description.DescriptionFactory;
 import org.eclipse.sirius.viewpoint.LabelAlignment;
 import org.eclipse.sirius.viewpoint.ViewpointPackage;
 import org.eclipse.sirius.viewpoint.description.Group;
+import org.eclipse.sirius.viewpoint.description.JavaExtension;
 import org.eclipse.sirius.viewpoint.description.Viewpoint;
 
 public class OdesignGenerator {
@@ -95,6 +96,12 @@ public class OdesignGenerator {
         viewpoint.setName("KarpfenViewpoint");
         viewpoint.setLabel("Karpfen Visualizations");
         group.getOwnedViewpoints().add(viewpoint);
+
+        // Register java services in sirius viewpoint
+        // required to create visuals for object diagram
+        JavaExtension javaExt = org.eclipse.sirius.viewpoint.description.DescriptionFactory.eINSTANCE.createJavaExtension();
+        javaExt.setQualifiedClassName("org.karpfen.design.KarpfenDiagramServices");
+        viewpoint.getOwnedJavaExtensions().add(javaExt);
         
         ///////
         // !!! KMeta class diagram
@@ -184,6 +191,9 @@ public class OdesignGenerator {
         kmodelDiagram.setName("KModelObjectDiagram");
         kmodelDiagram.setLabel("KModel Object Diagram");
         kmodelDiagram.setDomainClass("ecore.EObject");
+        // Single uncontained root Room APB 2101
+        //kmodelDiagram.setPreconditionExpression("aql:self.eContainer().oclIsUndefined()");
+        kmodelDiagram.setPreconditionExpression("aql:self.eContainer() = null");
         kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
         viewpoint.getOwnedRepresentations().add(kmodelDiagram);
 
@@ -191,14 +201,12 @@ public class OdesignGenerator {
         ContainerMapping eObjectNode = DescriptionFactory.eINSTANCE.createContainerMapping();
         eObjectNode.setName("EObjectNode");
         eObjectNode.setDomainClass("ecore.EObject");
-        eObjectNode.setSemanticCandidatesExpression("aql:self.eAllContents(ecore::EObject)->including(self)");
+        eObjectNode.setSemanticCandidatesExpression("aql:self.eAllContents()->including(self)");
+        eObjectNode.setChildrenPresentation(ContainerLayout.LIST);
 
         FlatContainerStyleDescription objStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
-
-        //objStyle.setLabelExpression("aql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and selfaql:self.eClass().name + if self.eClass().getEStructuralFeature('name') <> null and self.eGet(self.eClass().getEStructuralFeature('name')) <> null then ' : ' + self.eGet(self.eClass().getEStructuralFeature('name')).toString() else '' endif");
-        // AQL Expression: "turtle : Robot" or "APB 2101 : Room"
-        objStyle.setLabelExpression("aql:if self.eClass().getEStructuralFeature('__id__') <> null and self.eGet(self.eClass().getEStructuralFeature('__id__')) <> '' then self.eGet(self.eClass().getEStructuralFeature('__id__')).toString() + ' : ' + self.eClass().name else self.eClass().name endif");
-
+        objStyle.setLabelExpression("aql:self.getObjectLabel()");
+        objStyle.setLabelAlignment(LabelAlignment.LEFT);
         objStyle.setShowIcon(true);
         objStyle.setBorderSizeComputationExpression("1");
         eObjectNode.setStyle(objStyle);

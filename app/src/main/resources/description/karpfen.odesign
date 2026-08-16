@@ -29,7 +29,7 @@
         </style>
       </containerMappings>
     </ownedRepresentations>
-    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject">
+    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject" preconditionExpression="aql:self.eContainer() = null">
       <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
       <edgeMappings name="InstanceContainmentEdge" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eContents()">
         <style sourceArrow="FillDiamond">
@@ -41,8 +41,8 @@
           <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
         </style>
       </edgeMappings>
-      <containerMappings name="EObjectNode" semanticCandidatesExpression="aql:self.eAllContents(ecore::EObject)->including(self)" domainClass="ecore.EObject">
-        <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:if self.eClass().getEStructuralFeature('__id__') &lt;> null and self.eGet(self.eClass().getEStructuralFeature('__id__')) &lt;> '' then self.eGet(self.eClass().getEStructuralFeature('__id__')).toString() + ' : ' + self.eClass().name else self.eClass().name endif">
+      <containerMappings name="EObjectNode" semanticCandidatesExpression="aql:self.eAllContents()->including(self)" domainClass="ecore.EObject" childrenPresentation="List">
+        <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.getObjectLabel()" labelAlignment="LEFT">
           <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
           <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
           <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>
@@ -50,5 +50,6 @@
         </style>
       </containerMappings>
     </ownedRepresentations>
+    <ownedJavaExtensions qualifiedClassName="org.karpfen.design.KarpfenDiagramServices"/>
   </ownedViewpoints>
 </description:Group>

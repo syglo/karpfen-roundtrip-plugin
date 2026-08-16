@@ -50,12 +50,16 @@ public class KMetaToEcoreTransformer {
             EClass eClass = factory.createEClass();
             eClass.setName(classType.getName());
 
+            // !! VERY IMPORTANT fix for kmodel, to have ability create new View KModel Diagramm
+            eClass.getESuperTypes().add(EcorePackage.Literals.EOBJECT);
+
             // Synthetic instance identifier attributes (helps later)
             EAttribute idAttr = factory.createEAttribute();
             idAttr.setName(ID_FEATURE_NAME);
             idAttr.setEType(EcorePackage.Literals.ESTRING);
             idAttr.setID(true); // EMF unique intrinsic ID
             idAttr.setDefaultValue("");
+            idAttr.setUnsettable(true);
             eClass.getEStructuralFeatures().add(idAttr);
 
             // Map doc comments to EMF GenModel annotations - visual tooltips in IDE
@@ -77,6 +81,7 @@ public class KMetaToEcoreTransformer {
                 attribute.setName(prop.getKey());
                 attribute.setEType(mapDataType(prop.getPropertyType()));
                 attribute.setUpperBound(prop.isList() ? ETypedElement.UNBOUNDED_MULTIPLICITY : 1);
+                attribute.setUnsettable(true);
 
                 eClass.getEStructuralFeatures().add(attribute);
                 featureMap.put(classType.getName() + "." + prop.getKey(), attribute);

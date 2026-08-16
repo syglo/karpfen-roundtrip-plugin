@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +46,11 @@ public class KmodelResource extends ResourceImpl {
             // find metamodel .kmeta for .kmodel
             MetamodelResolution resolution = resolveMetamodel(options);
             if (resolution.metamodel == null || resolution.ePackage == null) {
-                throw new IOException("Could not resolve Metamodel for: " + getURI());
+                throw new IOException("Could not resolve Metamodel .kmeta for: " + getURI());
             }
+
+            // aql visibility for classifiers
+            registerPackage(resolution.ePackage);
 
             // parse kmeta text dsl to karpfen ast metamodel
             this.parsedModel = KmodelDSLConverter.INSTANCE.parseKmodelString(content, resolution.metamodel);
@@ -63,7 +67,8 @@ public class KmodelResource extends ResourceImpl {
         }
     }
 
-    private record MetamodelResolution(Metamodel metamodel, EPackage ePackage) {}
+    private record MetamodelResolution(Metamodel metamodel, EPackage ePackage) {
+    }
 
     private MetamodelResolution resolveMetamodel(Map<?, ?> options) throws IOException {
         // Try load from options map
@@ -91,14 +96,6 @@ public class KmodelResource extends ResourceImpl {
                     }
                 }
             }
-            // any resource set
-            for (Resource res : rs.getResources()) {
-                if (res instanceof KmetaResource kmRes && kmRes.getParsedMetamodel() != null) {
-                    if (!kmRes.getContents().isEmpty() && kmRes.getContents().get(0) instanceof EPackage pkg) {
-                        return new MetamodelResolution(kmRes.getParsedMetamodel(), pkg);
-                    }
-                }
-            }
         }
 
         // Try search in workspace of eclipse platform: uri
@@ -123,7 +120,25 @@ public class KmodelResource extends ResourceImpl {
                     }
                 }
             } catch (Throwable ignored) {
-                // last strategy just find ifle
+            }
+        }
+
+        // Try search in filesystem file:
+        if (getURI() != null && getURI().isFile()) {
+            try {
+                File modelFile = new File(getURI().toFileString());
+                File parent = modelFile.getParentFile();
+                if (parent != null && parent.exists()) {
+                    File exactKmFile = new File(parent, modelBaseName + ".kmeta");
+                    if (exactKmFile.exists()) {
+                        return loadKmetaDiskFile(exactKmFile);
+                    }
+                    File[] files = parent.listFiles((dir, name) -> name.toLowerCase().endsWith(".kmeta"));
+                    if (files != null && files.length > 0) {
+                        return loadKmetaDiskFile(files[0]);
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         }
 
@@ -136,9 +151,26 @@ public class KmodelResource extends ResourceImpl {
             Metamodel meta = KmetaDSLConverter.INSTANCE.parseKmetaString(kmContent, Collections.emptyList());
             String pkgName = file.getName().replace(".kmeta", "");
             EPackage pkg = new KMetaToEcoreTransformer().transform(
-                meta, pkgName, "http://github/karpfen/" + pkgName, pkgName
-            );
+                    meta, pkgName, "http://github/karpfen/" + pkgName, pkgName);
             return new MetamodelResolution(meta, pkg);
+        }
+    }
+
+    private MetamodelResolution loadKmetaDiskFile(File file) throws Exception {
+        String kmContent = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        Metamodel meta = KmetaDSLConverter.INSTANCE.parseKmetaString(kmContent, Collections.emptyList());
+        String pkgName = file.getName().replace(".kmeta", "");
+        EPackage pkg = new KMetaToEcoreTransformer().transform(
+                meta, pkgName, "http://github/karpfen/" + pkgName, pkgName);
+        return new MetamodelResolution(meta, pkg);
+    }
+
+    private void registerPackage(EPackage pkg) {
+        if (pkg != null) {
+            EPackage.Registry.INSTANCE.put(pkg.getNsURI(), pkg);
+            if (getResourceSet() != null) {
+                getResourceSet().getPackageRegistry().put(pkg.getNsURI(), pkg);
+            }
         }
     }
 
