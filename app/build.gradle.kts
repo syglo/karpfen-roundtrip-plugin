@@ -206,7 +206,7 @@ tasks.named<Jar>("jar") {
                     "org.eclipse.sirius.ui",
                     //"org.eclipse.elk.sdk",
                 ).joinToString(","),
-                "Export-Package" to "org.karpfen.transformer, org.karpfen.design",
+                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource",
             )
         )
     }

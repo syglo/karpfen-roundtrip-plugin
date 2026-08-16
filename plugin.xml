@@ -14,4 +14,20 @@
    <extension point="org.eclipse.ui.startup">
       <startup class="org.karpfen.design.KarpfenStartup"/>
    </extension>
+
+   <!-- Custom EMF File Extension Parsers -->
+   <extension point="org.eclipse.emf.ecore.extension_parser">
+      <parser
+            type="kmeta"
+            class="org.karpfen.resource.KmetaResourceFactory">
+      </parser>
+      <parser
+            type="kmodel"
+            class="org.karpfen.resource.KmodelResourceFactory">
+      </parser>
+      <parser
+            type="kstates"
+            class="org.karpfen.resource.KstatesResourceFactory">
+      </parser>
+   </extension>
 </plugin>
