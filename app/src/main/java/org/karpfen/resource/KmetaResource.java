@@ -10,6 +10,8 @@ import java.util.Map;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
+import org.karpfen.serializer.AcceleoKMetaSerializer;
+import org.karpfen.serializer.KarpfenDslFormatter;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 
 import dsl.textual.KmetaDSLConverter;
@@ -57,7 +59,12 @@ public class KmetaResource extends ResourceImpl {
     // D2T
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
-        throw new UnsupportedOperationException("D2T for .kmeta later");
+        if (!getContents().isEmpty() && getContents().get(0) instanceof EPackage pkg) {
+            AcceleoKMetaSerializer serializer = new AcceleoKMetaSerializer();
+            String generated = serializer.serialize(pkg);
+            String formatted = KarpfenDslFormatter.formatKMeta(generated);
+            outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     public Metamodel getParsedMetamodel() {

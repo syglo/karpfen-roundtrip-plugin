@@ -21,6 +21,8 @@ import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
+import org.karpfen.serializer.AcceleoKModelSerializer;
+import org.karpfen.serializer.KarpfenDslFormatter;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 import org.karpfen.transformer.KModelToEcoreInstanceTransformer;
 
@@ -177,7 +179,12 @@ public class KmodelResource extends ResourceImpl {
     // D2T
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
-        throw new UnsupportedOperationException("D2T for .kmodel later");
+        if (!getContents().isEmpty() && getContents().get(0) instanceof EObject rootObj) {
+            AcceleoKModelSerializer serializer = new AcceleoKModelSerializer();
+            String generated = serializer.serialize(rootObj);
+            String formatted = KarpfenDslFormatter.formatKModel(generated);
+            outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     public Model getParsedModel() {

@@ -176,7 +176,7 @@ public class AcceleoRunner {
                 }
             }
 
-            // Output
+            // Temp file
             File generatedFile = new File(tempDir.toFile(), outputFilename);
             if (!generatedFile.exists()) {
                 File[] files = tempDir.toFile().listFiles((dir, name) -> !name.endsWith(".log"));
@@ -187,7 +187,15 @@ public class AcceleoRunner {
                 }
             }
 
-            return Files.readString(generatedFile.toPath(), StandardCharsets.UTF_8);
+            // Read generated acceleo and format it
+            String rawGenerated = Files.readString(generatedFile.toPath(), StandardCharsets.UTF_8);
+            if (outputFilename.endsWith(".kmeta")) {
+                return KarpfenDslFormatter.formatKMeta(rawGenerated);
+            } else if (outputFilename.endsWith(".kmodel")) {
+                return KarpfenDslFormatter.formatKModel(rawGenerated);
+            }
+            // TODO: throw error, unknown file extension.
+            return rawGenerated;
         } catch (Exception e) {
             throw new RuntimeException("[Karpfen] Acceleo generation error: " + e.getMessage(), e);
         } finally {
