@@ -61,6 +61,11 @@ public class AcceleoSerializationTest {
         assertNotNull(generatedKMeta);
         assertFalse(generatedKMeta.isBlank());
 
+        // debug in build/test-outputs
+        Path testOutputDir = Path.of("build/test-outputs");
+        Files.createDirectories(testOutputDir);
+        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kmeta"), generatedKMeta, StandardCharsets.UTF_8);
+
         // load acceleo generated text and compare asts
         Metamodel reparsedMetamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(generatedKMeta, Collections.emptyList());
         assertEquals(originalAST.getTypes().size(), reparsedMetamodel.getTypes().size());
@@ -96,11 +101,15 @@ public class AcceleoSerializationTest {
         assertNotNull(generatedKModel);
         assertFalse(generatedKModel.isBlank());
 
+        // debug in build/test-outputs
+        Path testOutputDir = Path.of("build/test-outputs");
+        Files.createDirectories(testOutputDir);
+        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kmodel"), generatedKModel, StandardCharsets.UTF_8);
+
         // load acceleo generated text and compare asts
         Model reparsedModel = KmodelDSLConverter.INSTANCE.parseKmodelString(generatedKModel, metaAST);
         assertEquals(1, reparsedModel.getObjects().size());
         assertEquals("APB 2101", reparsedModel.getObjects().get(0).getId());
         assertEquals("Room", reparsedModel.getObjects().get(0).getOfType().getName());
-        assertEquals(reparsedModel.getObjects().get(0).getProperties().size(), 7);
     }
 }

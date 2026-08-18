@@ -6,27 +6,27 @@
 [comment @main /]
 [template public generateKModel(root : ecore::EObject)]
   [file ('output.kmodel', overwrite, 'UTF-8')]
-    [root.generateObject()/]
+    [root.generateObject('')/]
   [/file]
 [/template]
 
-[template public generateObject(obj : ecore::EObject)]
-  make object "[obj.getId()/]":"[obj.getClassName()/]" {
+[template public generateObject(obj : ecore::EObject, indent : String)]
+  [indent/]make object "[obj.getId()/]":"[obj.getClassName()/]" {
   [for (a : ecore::EAttribute | obj.getAllAttributes())]
     [for (val : String | obj.getAttributeValues(a))]
-      prop("[a.name/]") -> "[val/]"
+      [indent/]    prop("[a.name/]") -> "[val/]"
     [/for]
   [/for]
   [for (r : ecore::EReference | obj.getAllContainmentReferences())]
     [for (child : ecore::EObject | obj.getContainedChildren(r))]
-      has("[r.name/]") ->
-        [child.generateObject()/]
+      [indent/]    has("[r.name/]") ->
+      [child.generateObject(indent.concat('    '))/]
     [/for]
   [/for]
   [for (r : ecore::EReference | obj.getAllAssociationReferences())]
     [for (target : ecore::EObject | obj.getReferenceTargets(r))]
-      knows("[r.name/]") -> "[target.getId()/]"
+      [indent/]    knows("[r.name/]") -> "[target.getId()/]"
     [/for]
   [/for]
-  }
+  [indent/]}
 [/template]

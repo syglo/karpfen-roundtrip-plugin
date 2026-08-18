@@ -10,23 +10,23 @@
       type "[c.name/]" "[c.getDocumentation()/]" {
       [for (a : ecore::EAttribute | c.getAttributes())]
         [if (a.isMany())]
-          prop("[a.name/]", list("[a.eType.mapDataType()/]"))
+            prop("[a.name/]", list("[a.eType.mapDataType()/]"))
         [else]
-          prop("[a.name/]", "[a.eType.mapDataType()/]")
+            prop("[a.name/]", "[a.eType.mapDataType()/]")
         [/if]
       [/for]
       [for (r : ecore::EReference | c.getContainmentReferences())]
         [if (r.isMany())]
-          has("[r.name/]", list("[r.eType.name/]"))
+            has("[r.name/]", list("[r.eType.name/]"))
         [else]
-          has("[r.name/]", "[r.eType.name/]")
+            has("[r.name/]", "[r.eType.name/]")
         [/if]
       [/for]
       [for (r : ecore::EReference | c.getAssociationReferences())]
         [if (r.isMany())]
-          knows("[r.name/]", list("[r.eType.name/]"))
+            knows("[r.name/]", list("[r.eType.name/]"))
         [else]
-          knows("[r.name/]", "[r.eType.name/]")
+            knows("[r.name/]", "[r.eType.name/]")
         [/if]
       [/for]
       }
