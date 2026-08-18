@@ -43,12 +43,29 @@ repositories {
     }
 }
 
+// https://help.eclipse.org/latest/index.jsp?nav=%2F5
+
 p2deps {
     into("implementation") {
         p2repo("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
         install("org.eclipse.sirius")
         install("org.eclipse.sirius.diagram")
         install("org.eclipse.sirius.diagram.formatdata")
+        install("org.eclipse.sirius.common.acceleo.aql")
+
+        p2repo("https://download.eclipse.org/acceleo/updates/releases/4.2/R202603201315/")
+        // Acceleo
+        install("org.eclipse.acceleo.aql")
+        install("org.eclipse.acceleo.aql.launcher")
+        install("org.eclipse.acceleo.aql.profiler")
+        install("org.eclipse.acceleo.aql.ls")
+        install("org.eclipse.acceleo.query")
+        install("org.eclipse.acceleo.query.ide")
+        install("org.eclipse.acceleo.query.ide.jdt")
+        install("org.eclipse.acceleo.query.sirius")
+        install("org.eclipse.acceleo.aql.ide")
+        install("org.eclipse.acceleo.aql.ide.ui")
+        install("org.eclipse.acceleo.query.ide.ui")
     }
 }
 
@@ -204,9 +221,16 @@ tasks.named<Jar>("jar") {
                     "org.eclipse.sirius.diagram",
                     "org.eclipse.sirius.diagram.ui",
                     "org.eclipse.sirius.ui",
+                    "org.eclipse.sirius.common.acceleo.aql",
+                    // acceleo
+                    "org.eclipse.acceleo.query",
+                    "org.eclipse.acceleo.query.ide",
+                    "org.eclipse.acceleo.query.sirius",
+                    "org.eclipse.acceleo.aql",
+                    "org.eclipse.acceleo.aql.launcher"
                     //"org.eclipse.elk.sdk",
                 ).joinToString(","),
-                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource",
+                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource, org.karpfen.serializer",
             )
         )
     }

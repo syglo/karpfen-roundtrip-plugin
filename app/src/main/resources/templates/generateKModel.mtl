@@ -1,0 +1,32 @@
+[comment encoding = UTF-8 /]
+[module generateKModel('http://www.eclipse.org/emf/2002/Ecore')/]
+
+[import org::karpfen::serializer::AcceleoServices/]
+
+[comment @main /]
+[template public generateKModel(root : ecore::EObject)]
+  [file ('output.kmodel', overwrite, 'UTF-8')]
+    [root.generateObject()/]
+  [/file]
+[/template]
+
+[template public generateObject(obj : ecore::EObject)]
+  make object "[obj.getId()/]":"[obj.getClassName()/]" {
+  [for (a : ecore::EAttribute | obj.getAllAttributes())]
+    [for (val : String | obj.getAttributeValues(a))]
+      prop("[a.name/]") -> "[val/]"
+    [/for]
+  [/for]
+  [for (r : ecore::EReference | obj.getAllContainmentReferences())]
+    [for (child : ecore::EObject | obj.getContainedChildren(r))]
+      has("[r.name/]") ->
+        [child.generateObject()/]
+    [/for]
+  [/for]
+  [for (r : ecore::EReference | obj.getAllAssociationReferences())]
+    [for (target : ecore::EObject | obj.getReferenceTargets(r))]
+      knows("[r.name/]") -> "[target.getId()/]"
+    [/for]
+  [/for]
+  }
+[/template]
