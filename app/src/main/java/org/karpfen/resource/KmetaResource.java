@@ -11,13 +11,18 @@ import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
 import org.karpfen.serializer.AcceleoKMetaSerializer;
+import org.karpfen.serializer.EcoreToKMetaManualSerializer;
+import org.karpfen.serializer.KMetaSerializer;
 import org.karpfen.serializer.KarpfenDslFormatter;
+import org.karpfen.serializer.SerializerMode;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 
 import dsl.textual.KmetaDSLConverter;
 import meta.Metamodel;
 
 public class KmetaResource extends ResourceImpl {
+
+    public static SerializerMode ACTIVE_MODE = SerializerMode.ACCELEO_TEMPLATE;
 
     private Metamodel parsedMetamodel;
 
@@ -60,7 +65,9 @@ public class KmetaResource extends ResourceImpl {
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
         if (!getContents().isEmpty() && getContents().get(0) instanceof EPackage pkg) {
-            AcceleoKMetaSerializer serializer = new AcceleoKMetaSerializer();
+            KMetaSerializer serializer = (ACTIVE_MODE == SerializerMode.ACCELEO_TEMPLATE)
+                ? new AcceleoKMetaSerializer()
+                : new EcoreToKMetaManualSerializer();
             String generated = serializer.serialize(pkg);
             String formatted = KarpfenDslFormatter.formatKMeta(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));

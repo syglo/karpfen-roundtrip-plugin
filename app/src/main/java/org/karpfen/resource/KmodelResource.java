@@ -22,7 +22,10 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
 import org.karpfen.serializer.AcceleoKModelSerializer;
+import org.karpfen.serializer.EcoreToKModelManualSerializer;
+import org.karpfen.serializer.KModelSerializer;
 import org.karpfen.serializer.KarpfenDslFormatter;
+import org.karpfen.serializer.SerializerMode;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 import org.karpfen.transformer.KModelToEcoreInstanceTransformer;
 
@@ -32,6 +35,8 @@ import instance.Model;
 import meta.Metamodel;
 
 public class KmodelResource extends ResourceImpl {
+
+    public static SerializerMode ACTIVE_MODE = SerializerMode.ACCELEO_TEMPLATE;
 
     private Model parsedModel;
 
@@ -180,7 +185,9 @@ public class KmodelResource extends ResourceImpl {
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
         if (!getContents().isEmpty() && getContents().get(0) instanceof EObject rootObj) {
-            AcceleoKModelSerializer serializer = new AcceleoKModelSerializer();
+            KModelSerializer serializer = (ACTIVE_MODE == SerializerMode.ACCELEO_TEMPLATE)
+                ? new AcceleoKModelSerializer()
+                : new EcoreToKModelManualSerializer();
             String generated = serializer.serialize(rootObj);
             String formatted = KarpfenDslFormatter.formatKModel(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
