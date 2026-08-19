@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
+   <!-- Early Startup to guarantee bundle activation on boot -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="org.karpfen.design.KarpfenStartup"/>
+   </extension>
+
    <!-- Sirius Componentization Definition -->
    <extension point="org.eclipse.sirius.componentization">
       <component
@@ -10,9 +15,45 @@
       </component>
    </extension>
 
-   <!-- Early Startup to guarantee bundle activation on boot -->
-   <extension point="org.eclipse.ui.startup">
-      <startup class="org.karpfen.design.KarpfenStartup"/>
+   <!-- Eclipse Content Types for Karpfen DSL Files -->
+   <extension point="org.eclipse.core.contenttype.contentTypes">
+      <content-type
+            id="org.karpfen.contenttype.kmeta"
+            name="Karpfen Metamodel File (.kmeta)"
+            base-type="org.eclipse.core.runtime.text"
+            file-extensions="kmeta"
+            priority="high">
+      </content-type>
+      <content-type
+            id="org.karpfen.contenttype.kmodel"
+            name="Karpfen Model Instance File (.kmodel)"
+            base-type="org.eclipse.core.runtime.text"
+            file-extensions="kmodel"
+            priority="high">
+      </content-type>
+      <content-type
+            id="org.karpfen.contenttype.kstates"
+            name="Karpfen Statechart File (.kstates)"
+            base-type="org.eclipse.core.runtime.text"
+            file-extensions="kstates"
+            priority="high">
+      </content-type>
+   </extension>
+
+   <!-- Default Text Editor Association -->
+   <extension point="org.eclipse.ui.editors">
+      <editor
+            id="org.karpfen.editor.text"
+            name="Karpfen DSL Text Editor"
+            class="org.eclipse.ui.editors.text.TextEditor"
+            contributorClass="org.eclipse.ui.texteditor.BasicTextEditorActionContributor"
+            icon="icons/karpfen.png"
+            extensions="kmeta,kmodel,kstates"
+            default="true">
+         <contentTypeBinding contentTypeId="org.karpfen.contenttype.kmeta"/>
+         <contentTypeBinding contentTypeId="org.karpfen.contenttype.kmodel"/>
+         <contentTypeBinding contentTypeId="org.karpfen.contenttype.kstates"/>
+      </editor>
    </extension>
 
    <!-- Custom EMF File Extension Parsers -->

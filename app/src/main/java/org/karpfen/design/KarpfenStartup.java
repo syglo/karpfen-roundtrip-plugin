@@ -3,6 +3,7 @@ package org.karpfen.design;
 import org.eclipse.sirius.business.api.componentization.ViewpointRegistry;
 import org.eclipse.sirius.viewpoint.description.Viewpoint;
 import org.eclipse.ui.IStartup;
+import org.karpfen.resource.KarpfenResourceInitializer;
 
 import java.util.Set;
 
@@ -13,6 +14,9 @@ public class KarpfenStartup implements IStartup {
     @Override
     public void earlyStartup() {
         try {
+            // emf resource and epackage
+            KarpfenResourceInitializer.init();
+
             String odesignPath = PLUGIN_ID + "/description/karpfen.odesign";
             Set<Viewpoint> viewpoints = ViewpointRegistry.getInstance().registerFromPlugin(odesignPath);
 

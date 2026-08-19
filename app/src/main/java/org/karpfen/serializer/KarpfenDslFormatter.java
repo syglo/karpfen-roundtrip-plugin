@@ -31,6 +31,9 @@ public class KarpfenDslFormatter {
             KmetaParser parser = new KmetaParser(tokens);
 
             KmetaParser.Kmeta_fileContext tree = parser.kmeta_file();
+            if (tree == null || tree.type_definition() == null || tree.type_definition().isEmpty()) {
+                return rawKMeta;
+            }
             KmetaFormatterVisitor visitor = new KmetaFormatterVisitor();
             return visitor.visitKmeta_file(tree);
         } catch (Exception e) {
@@ -49,6 +52,9 @@ public class KarpfenDslFormatter {
             KmodelParser parser = new KmodelParser(tokens);
 
             KmodelParser.Kmodel_fileContext tree = parser.kmodel_file();
+            if (tree == null || tree.make_object_block() == null) {
+                return rawKModel;
+            }
             KmodelFormatterVisitor visitor = new KmodelFormatterVisitor();
             return visitor.visitKmodel_file(tree);
         } catch (Exception e) {
@@ -140,6 +146,7 @@ public class KarpfenDslFormatter {
 
         @Override
         public String visitKmodel_file(KmodelParser.Kmodel_fileContext ctx) {
+            if (ctx.make_object_block() == null) return "";
             return formatMakeObject(ctx.make_object_block(), 0).trim() + "\n";
         }
 

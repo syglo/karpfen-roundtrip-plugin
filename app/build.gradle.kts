@@ -186,12 +186,30 @@ tasks.named<Jar>("jar") {
         into("description")
     }
 
+    // templates
+    from(project.file("src/main/resources/templates")) {
+        into("templates")
+    }
+
+    // Embed third-party dependencies + Acceleo 4 libraries
+    // Exclude only the host Eclipse platform bundles provided by Eclipse Modeling Tools
+    val hostPlatformPrefixes = listOf(
+        "org.eclipse.osgi",
+        "org.eclipse.core.",
+        "org.eclipse.ui",
+        "org.eclipse.emf.",
+        "org.eclipse.sirius",
+        "org.eclipse.swt",
+        "org.eclipse.jface",
+        "org.eclipse.equinox"
+    )
+
     // bundle all dependencies
     // karpfen_tools, kotlin stdlib, antlr, json.
     // exclude eclipse/emf/sirius, its already in Eclipse Modelling Tools (runtime)
     from({
-        configurations.runtimeClasspath.get().filter {
-            file -> !file.name.startsWith("org.eclipse.")
+        configurations.runtimeClasspath.get().filter { file ->
+            hostPlatformPrefixes.none { prefix -> file.name.startsWith(prefix) }
         }.map { zipTree(it) }
     }) {
         // exclude metas from thirdparties - osgi verification failures
@@ -209,12 +227,15 @@ tasks.named<Jar>("jar") {
                 "Bundle-Version" to "1.0.0",
                 "Bundle-RequiredExecutionEnvironment" to "JavaSE-21",
                 "Bundle-Activator" to "org.karpfen.design.KarpfenPluginActivator",
+                "Bundle-ActivationPolicy" to "lazy",
                 "Require-Bundle" to listOf(
                     "org.eclipse.osgi",
                     "org.eclipse.core.runtime",
                     "org.eclipse.core.resources",
                     "org.eclipse.ui",
                     "org.eclipse.ui.workbench",
+                    "org.eclipse.ui.editors",
+                    "org.eclipse.ui.ide",
                     "org.eclipse.emf.ecore",
                     "org.eclipse.emf.ecore.xmi",
                     "org.eclipse.sirius",
@@ -223,11 +244,11 @@ tasks.named<Jar>("jar") {
                     "org.eclipse.sirius.ui",
                     "org.eclipse.sirius.common.acceleo.aql",
                     // acceleo
-                    "org.eclipse.acceleo.query",
-                    "org.eclipse.acceleo.query.ide",
-                    "org.eclipse.acceleo.query.sirius",
-                    "org.eclipse.acceleo.aql",
-                    "org.eclipse.acceleo.aql.launcher"
+                    //"org.eclipse.acceleo.query",
+                    //"org.eclipse.acceleo.query.ide",
+                    //"org.eclipse.acceleo.query.sirius",
+                    //"org.eclipse.acceleo.aql",
+                    //"org.eclipse.acceleo.aql.launcher"
                     //"org.eclipse.elk.sdk",
                 ).joinToString(","),
                 "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource, org.karpfen.serializer",
