@@ -19,12 +19,10 @@ fun getSwtPlatform(): String {
 }
 
 // Eclipse SWT POM (Maven) resolves OS but it conflicts with Gradle, and to resolve it in Gradle we compute it ${osgi.platform}
-allprojects {
-    configurations.all {
-        resolutionStrategy.eachDependency {
-            if (requested.name == "org.eclipse.swt.\${osgi.platform}") {
-                useTarget("org.eclipse.platform:org.eclipse.swt.${getSwtPlatform()}:${requested.version}")
-            }
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.name.startsWith("org.eclipse.swt")) {
+            useTarget("org.eclipse.platform:org.eclipse.swt.${getSwtPlatform()}:${requested.version}")
         }
     }
 }
@@ -70,11 +68,19 @@ p2deps {
 }
 
 dependencies {
+    // swt import
+    implementation("org.eclipse.platform:org.eclipse.swt.${getSwtPlatform()}:3.131.0")
+
     // OSGI runtime, BundleActivator
     implementation("org.eclipse.platform:org.eclipse.osgi:3.20.0")
     implementation("org.eclipse.platform:org.eclipse.core.runtime:3.31.0")
     implementation("org.eclipse.platform:org.eclipse.core.resources:3.20.0")
     implementation("org.eclipse.platform:org.eclipse.ui.workbench:3.131.0")
+    implementation("org.eclipse.platform:org.eclipse.ui.workbench.texteditor:3.20.100")
+    implementation("org.eclipse.platform:org.eclipse.ui.editors:3.22.0")
+    implementation("org.eclipse.platform:org.eclipse.ui.ide:3.22.0")
+    implementation("org.eclipse.platform:org.eclipse.jface:3.31.0")
+    implementation("org.eclipse.platform:org.eclipse.jface.text:3.31.0")
 
     // EMF standalone dependencies
     // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.ecore
@@ -234,8 +240,10 @@ tasks.named<Jar>("jar") {
                     "org.eclipse.core.resources",
                     "org.eclipse.ui",
                     "org.eclipse.ui.workbench",
+                    "org.eclipse.ui.workbench.texteditor",
                     "org.eclipse.ui.editors",
                     "org.eclipse.ui.ide",
+                    "org.eclipse.jface.text",
                     "org.eclipse.emf.ecore",
                     "org.eclipse.emf.ecore.xmi",
                     "org.eclipse.sirius",
@@ -251,7 +259,7 @@ tasks.named<Jar>("jar") {
                     //"org.eclipse.acceleo.aql.launcher"
                     //"org.eclipse.elk.sdk",
                 ).joinToString(","),
-                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource, org.karpfen.serializer",
+                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource, org.karpfen.serializer, org.karpfen.editor",
             )
         )
     }

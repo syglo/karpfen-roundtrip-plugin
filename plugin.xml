@@ -43,9 +43,9 @@
    <!-- Default Text Editor Association -->
    <extension point="org.eclipse.ui.editors">
       <editor
-            id="org.karpfen.editor.text"
+            id="org.karpfen.editor.dsl"
             name="Karpfen DSL Text Editor"
-            class="org.eclipse.ui.editors.text.TextEditor"
+            class="org.karpfen.editor.KarpfenEditor"
             contributorClass="org.eclipse.ui.texteditor.BasicTextEditorActionContributor"
             icon="icons/karpfen.png"
             extensions="kmeta,kmodel,kstates"
