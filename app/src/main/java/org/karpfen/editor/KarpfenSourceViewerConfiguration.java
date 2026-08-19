@@ -5,6 +5,8 @@ import org.eclipse.jface.text.formatter.ContentFormatter;
 import org.eclipse.jface.text.formatter.IContentFormatter;
 import org.eclipse.jface.text.presentation.IPresentationReconciler;
 import org.eclipse.jface.text.presentation.PresentationReconciler;
+import org.eclipse.jface.text.reconciler.IReconciler;
+import org.eclipse.jface.text.reconciler.MonoReconciler;
 import org.eclipse.jface.text.rules.DefaultDamagerRepairer;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.ui.editors.text.TextSourceViewerConfiguration;
@@ -13,10 +15,13 @@ public class KarpfenSourceViewerConfiguration extends TextSourceViewerConfigurat
 
     private final KarpfenColorManager colorManager;
     private final String fileExtension;
+    private final KarpfenEditor editor;
 
-    public KarpfenSourceViewerConfiguration(KarpfenColorManager colorManager, String fileExtension) {
+    public KarpfenSourceViewerConfiguration(KarpfenColorManager colorManager, String fileExtension,
+            KarpfenEditor editor) {
         this.colorManager = colorManager;
         this.fileExtension = fileExtension;
+        this.editor = editor;
     }
 
     @Override
@@ -35,5 +40,13 @@ public class KarpfenSourceViewerConfiguration extends TextSourceViewerConfigurat
         formatter.setFormattingStrategy(strategy, IDocument.DEFAULT_CONTENT_TYPE);
         formatter.enablePartitionAwareFormatting(false);
         return formatter;
+    }
+
+    @Override
+    public IReconciler getReconciler(ISourceViewer sourceViewer) {
+        KarpfenReconcilingStrategy strategy = new KarpfenReconcilingStrategy(editor);
+        MonoReconciler reconciler = new MonoReconciler(strategy, false);
+        reconciler.setDelay(500); // 0.5s deebounce
+        return reconciler;
     }
 }

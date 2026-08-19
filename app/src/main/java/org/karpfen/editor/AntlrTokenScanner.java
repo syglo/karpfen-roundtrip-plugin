@@ -4,7 +4,6 @@ import kmeta.KmetaLexer;
 import kmodel.KmodelLexer;
 import kstates.KstatesLexer;
 
-import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.Token;

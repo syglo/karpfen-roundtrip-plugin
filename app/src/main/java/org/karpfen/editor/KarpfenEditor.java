@@ -20,7 +20,7 @@ public class KarpfenEditor extends TextEditor {
         super.doSetInput(input);
         String name = input != null ? input.getName() : "kmeta";
         String ext = name.contains(".") ? name.substring(name.lastIndexOf(".") + 1) : "kmeta";
-        setSourceViewerConfiguration(new KarpfenSourceViewerConfiguration(colorManager, ext));
+        setSourceViewerConfiguration(new KarpfenSourceViewerConfiguration(colorManager, ext, this));
     }
 
     @Override

@@ -50,14 +50,27 @@ public class KmetaResource extends ResourceImpl {
             EPackage ePackage = transformer.transform(this.parsedMetamodel, packageName, nsUri, packageName);
 
             // from super class
+            getErrors().clear();
             getContents().clear();
             getContents().add(ePackage);
 
             if (getResourceSet() != null) {
                 getResourceSet().getPackageRegistry().put(ePackage.getNsURI(), ePackage);
             }
-        } catch (Exception e) {
-            throw new IOException("[Karpfen] Failed to load .kmeta resource from: " + getURI(), e);
+
+            // clear problem markers
+            KarpfenProblemMarkerManager.clearMarkers(getURI());
+
+        } catch (Throwable t) {
+            // throw new IOException("[Karpfen] Failed to load .kmeta resource from: " +
+            // getURI(), e);
+
+            // Soft failure, record it to emf and problem marker
+            int line = KarpfenProblemMarkerManager.extractLineNumber(t);
+            getErrors().add(new KarpfenDiagnostic(t.getMessage(), getURI().toString(), line, 0));
+            KarpfenProblemMarkerManager.reportError(getURI(), t);
+
+            System.err.println("[Karpfen] Validation error in .kmeta" + t.getMessage());
         }
     }
 
@@ -71,6 +84,7 @@ public class KmetaResource extends ResourceImpl {
             String generated = serializer.serialize(pkg);
             String formatted = KarpfenDslFormatter.formatKMeta(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
         }
     }
 

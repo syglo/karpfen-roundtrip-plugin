@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.Map;
 
 import org.eclipse.emf.common.util.URI;
@@ -12,9 +11,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EcoreFactory;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
-import org.karpfen.transformer.KMetaToEcoreTransformer;
 
-import dsl.textual.KmetaDSLConverter;
 import dsl.textual.KstatesDSLConverter;
 import states.StateMachine;
 

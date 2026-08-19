@@ -5,7 +5,6 @@ import instance.ClassTypeListPropertyObject;
 import instance.ClassTypePropertyObject;
 import instance.DataObject;
 import instance.Model;
-import instance.ObjectReference;
 import instance.SimpleAtomicPropertyObject;
 import instance.SimpleListPropertyObject;
 import instance.SimplePropertyObject;

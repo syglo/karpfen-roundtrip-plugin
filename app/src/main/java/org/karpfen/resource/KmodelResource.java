@@ -53,7 +53,7 @@ public class KmodelResource extends ResourceImpl {
             // find metamodel .kmeta for .kmodel
             MetamodelResolution resolution = resolveMetamodel(options);
             if (resolution.metamodel == null || resolution.ePackage == null) {
-                throw new IOException("Could not resolve Metamodel .kmeta for: " + getURI());
+                throw new IllegalArgumentException("Could not resolve Metamodel .kmeta for: " + getURI());
             }
 
             // aql visibility for classifiers
@@ -67,10 +67,23 @@ public class KmodelResource extends ResourceImpl {
             List<EObject> rootObjects = transformer.transform(this.parsedModel, resolution.ePackage);
 
             // from super class
+            getErrors().clear();
             getContents().clear();
             getContents().addAll(rootObjects);
-        } catch (Exception e) {
-            throw new IOException("[Karpfen] Failed to load .kmodel resource from: " + getURI(), e);
+
+            // clear problem markers
+            KarpfenProblemMarkerManager.clearMarkers(getURI());
+
+        } catch (Throwable t) {
+            // throw new IOException("[Karpfen] Failed to load .kmeta resource from: " +
+            // getURI(), e);
+
+            // Soft failure, record it to emf and problem marker
+            int line = KarpfenProblemMarkerManager.extractLineNumber(t);
+            getErrors().add(new KarpfenDiagnostic(t.getMessage(), getURI().toString(), line, 0));
+            KarpfenProblemMarkerManager.reportError(getURI(), t);
+
+            System.err.println("[Karpfen] Validation error in .kmodel" + t.getMessage());
         }
     }
 
@@ -191,6 +204,7 @@ public class KmodelResource extends ResourceImpl {
             String generated = serializer.serialize(rootObj);
             String formatted = KarpfenDslFormatter.formatKModel(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
         }
     }
 
