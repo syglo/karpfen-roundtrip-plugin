@@ -186,8 +186,8 @@ public class KmodelResource extends ResourceImpl {
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
         if (!getContents().isEmpty() && getContents().get(0) instanceof EObject rootObj) {
             KModelSerializer serializer = (ACTIVE_MODE == SerializerMode.ACCELEO_TEMPLATE)
-                ? new AcceleoKModelSerializer()
-                : new EcoreToKModelManualSerializer();
+                    ? new AcceleoKModelSerializer()
+                    : new EcoreToKModelManualSerializer();
             String generated = serializer.serialize(rootObj);
             String formatted = KarpfenDslFormatter.formatKModel(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));

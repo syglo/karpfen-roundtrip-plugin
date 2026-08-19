@@ -66,8 +66,8 @@ public class KmetaResource extends ResourceImpl {
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
         if (!getContents().isEmpty() && getContents().get(0) instanceof EPackage pkg) {
             KMetaSerializer serializer = (ACTIVE_MODE == SerializerMode.ACCELEO_TEMPLATE)
-                ? new AcceleoKMetaSerializer()
-                : new EcoreToKMetaManualSerializer();
+                    ? new AcceleoKMetaSerializer()
+                    : new EcoreToKMetaManualSerializer();
             String generated = serializer.serialize(pkg);
             String formatted = KarpfenDslFormatter.formatKMeta(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));

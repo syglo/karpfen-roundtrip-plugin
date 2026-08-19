@@ -2,7 +2,6 @@ package org.karpfen.serializer;
 
 import org.eclipse.emf.ecore.EPackage;
 
-
 public class AcceleoKMetaSerializer implements KMetaSerializer {
 
     public static final String MODULE_NAME = "templates::generateKMeta";
@@ -18,5 +17,5 @@ public class AcceleoKMetaSerializer implements KMetaSerializer {
         }
         return runner.generateToString(MODULE_NAME, TEMPLATE_NAME, OUTPUT_FILE, ePackage);
     }
-    
+
 }

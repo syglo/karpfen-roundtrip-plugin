@@ -50,10 +50,11 @@ public class AcceleoSerializationTest {
         // text -> karpfen ast
         Metamodel originalAST = KmetaDSLConverter.INSTANCE.parseKmetaString(originalKMetaText, Collections.emptyList());
         assertEquals(6, originalAST.getTypes().size(), "Vector, TwoDObject, Obstacle, Wall, Robot, Room");
-        
+
         // karpfen ast -> EMF
         KMetaToEcoreTransformer transformer = new KMetaToEcoreTransformer();
-        EPackage ePackage = transformer.transform(originalAST, "cleaning_robot", "http://github/karpfen/cleaning_robot", "cleaning_robot");
+        EPackage ePackage = transformer.transform(originalAST, "cleaning_robot", "http://github/karpfen/cleaning_robot",
+                "cleaning_robot");
 
         // EMF acceleo -> text
         AcceleoKMetaSerializer acceleoSerializer = new AcceleoKMetaSerializer();
@@ -64,10 +65,12 @@ public class AcceleoSerializationTest {
         // debug in build/test-outputs
         Path testOutputDir = Path.of("build/test-outputs");
         Files.createDirectories(testOutputDir);
-        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kmeta"), generatedKMeta, StandardCharsets.UTF_8);
+        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kmeta"), generatedKMeta,
+                StandardCharsets.UTF_8);
 
         // load acceleo generated text and compare asts
-        Metamodel reparsedMetamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(generatedKMeta, Collections.emptyList());
+        Metamodel reparsedMetamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(generatedKMeta,
+                Collections.emptyList());
         assertEquals(originalAST.getTypes().size(), reparsedMetamodel.getTypes().size());
         assertEquals("Room", reparsedMetamodel.getRootClass().getName());
 
@@ -89,7 +92,8 @@ public class AcceleoSerializationTest {
 
         // karpfen ast -> EMF
         KMetaToEcoreTransformer metaTransformer = new KMetaToEcoreTransformer();
-        EPackage ePackage = metaTransformer.transform(metaAST, "cleaning_robot", "http://github/karpfen/cleaning_robot", "cleaning_robot");
+        EPackage ePackage = metaTransformer.transform(metaAST, "cleaning_robot", "http://github/karpfen/cleaning_robot",
+                "cleaning_robot");
 
         KModelToEcoreInstanceTransformer instanceTransformer = new KModelToEcoreInstanceTransformer();
         List<EObject> rootObjects = instanceTransformer.transform(originalModelAST, ePackage);
@@ -104,7 +108,8 @@ public class AcceleoSerializationTest {
         // debug in build/test-outputs
         Path testOutputDir = Path.of("build/test-outputs");
         Files.createDirectories(testOutputDir);
-        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kmodel"), generatedKModel, StandardCharsets.UTF_8);
+        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kmodel"), generatedKModel,
+                StandardCharsets.UTF_8);
 
         // load acceleo generated text and compare asts
         Model reparsedModel = KmodelDSLConverter.INSTANCE.parseKmodelString(generatedKModel, metaAST);

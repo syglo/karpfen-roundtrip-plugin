@@ -15,21 +15,21 @@ public class ParserTest {
     @Test
     void testKMetaParsing() {
         String kmetaCode = """
-            type "Robot" "A person entity" {
-                prop("name", "string")
-                prop("age", "number")
-            }            
-            """;
-        
-        //Metamodel metamodel = KmetaDSLConverter.parseKmetaString(kmetaCode, null);
-        //assertNotNull(metamodel, "Parsed metamodel should not be null");
-        //System.out.println(metamodel.toString());
+                type "Robot" "A person entity" {
+                    prop("name", "string")
+                    prop("age", "number")
+                }
+                """;
 
-        //MetamodelBuilder builder = new MetamodelBuilder();
-        //Metamodel metamodel = builder.derive()
-        
-        //MetamodelBuilder builder = new MetamodelBuilder();
+        // Metamodel metamodel = KmetaDSLConverter.parseKmetaString(kmetaCode, null);
+        // assertNotNull(metamodel, "Parsed metamodel should not be null");
+        // System.out.println(metamodel.toString());
+
+        // MetamodelBuilder builder = new MetamodelBuilder();
+        // Metamodel metamodel = builder.derive()
+
+        // MetamodelBuilder builder = new MetamodelBuilder();
         // Test parsing text into Metamodel AST
-        //Metamodel metamodel = builder.string
+        // Metamodel metamodel = builder.string
     }
 }

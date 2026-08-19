@@ -25,7 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KModelToEcoreInstanceTransformerTest {
-    
+
     private static KMetaToEcoreTransformer metaTransformer;
     private static KModelToEcoreInstanceTransformer instanceTransformer;
 
@@ -38,39 +38,39 @@ public class KModelToEcoreInstanceTransformerTest {
     @Test
     void testKModelTransformationInMemory() {
         String kmetaCode = """
-            type "Point" "2D Point" {
-                prop("x", "number")
-                prop("y", "number")
-            }
-            type "Target" "Target object" {
-                prop("name", "string")
-            }
-            type "Agent" "Agent entity" {
-                prop("speed", "number")
-                has("pos", "Point")
-                knows("target", "Target")
-            }
-            type "World" "Root World Container" {
-                has("target", "Target")
-                has("agent", "Agent")
-            }
-            """;
+                type "Point" "2D Point" {
+                    prop("x", "number")
+                    prop("y", "number")
+                }
+                type "Target" "Target object" {
+                    prop("name", "string")
+                }
+                type "Agent" "Agent entity" {
+                    prop("speed", "number")
+                    has("pos", "Point")
+                    knows("target", "Target")
+                }
+                type "World" "Root World Container" {
+                    has("target", "Target")
+                    has("agent", "Agent")
+                }
+                """;
 
         String kmodelCode = """
-            make object "w1":"World" {
-                has("target") -> make object "t1":"Target" {
-                    prop("name") -> "BaseStation"
-                }
-                has("agent") -> make object "a1":"Agent" {
-                    prop("speed") -> "2.5"
-                    has("pos") -> make object "p1":"Point" {
-                        prop("x") -> "1.0"
-                        prop("y") -> "4.0"
+                make object "w1":"World" {
+                    has("target") -> make object "t1":"Target" {
+                        prop("name") -> "BaseStation"
                     }
-                    knows("target") -> "t1"
+                    has("agent") -> make object "a1":"Agent" {
+                        prop("speed") -> "2.5"
+                        has("pos") -> make object "p1":"Point" {
+                            prop("x") -> "1.0"
+                            prop("y") -> "4.0"
+                        }
+                        knows("target") -> "t1"
+                    }
                 }
-            }
-            """;
+                """;
 
         Metamodel metamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(kmetaCode, Collections.emptyList());
         Model model = KmodelDSLConverter.INSTANCE.parseKmodelString(kmodelCode, metamodel);
@@ -79,7 +79,8 @@ public class KModelToEcoreInstanceTransformerTest {
         // Transform kmodel
         List<EObject> rootObjects = instanceTransformer.transform(model, ePackage);
         assertNotNull(rootObjects);
-        assertEquals(1, rootObjects.size(), "Karpfen KModel starts with only single root object. Only w1 World is expected");
+        assertEquals(1, rootObjects.size(),
+                "Karpfen KModel starts with only single root object. Only w1 World is expected");
 
         // Single root world
         EObject world = rootObjects.get(0);
@@ -111,18 +112,18 @@ public class KModelToEcoreInstanceTransformerTest {
     @Test
     void testXmiFileSerializationAndReload(@TempDir Path tempDir) throws IOException {
         String kmetaCode = """
-            type "Item" "An inventory item" {
-                prop("name", "string")
-                prop("quantity", "number")
-            }
-            """;
+                type "Item" "An inventory item" {
+                    prop("name", "string")
+                    prop("quantity", "number")
+                }
+                """;
 
         String kmodelCode = """
-            make object "item1":"Item" {
-                prop("name") -> "A113"
-                prop("quantity") -> "42.0"
-            }
-            """;
+                make object "item1":"Item" {
+                    prop("name") -> "A113"
+                    prop("quantity") -> "42.0"
+                }
+                """;
 
         Metamodel metamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(kmetaCode, Collections.emptyList());
         Model model = KmodelDSLConverter.INSTANCE.parseKmodelString(kmodelCode, metamodel);

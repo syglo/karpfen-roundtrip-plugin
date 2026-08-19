@@ -10,7 +10,7 @@ import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.ui.editors.text.TextSourceViewerConfiguration;
 
 public class KarpfenSourceViewerConfiguration extends TextSourceViewerConfiguration {
-    
+
     private final KarpfenColorManager colorManager;
     private final String fileExtension;
 

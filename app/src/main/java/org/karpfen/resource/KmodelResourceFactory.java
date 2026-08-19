@@ -11,4 +11,3 @@ public class KmodelResourceFactory extends ResourceFactoryImpl {
         return new KmodelResource(uri);
     }
 }
-

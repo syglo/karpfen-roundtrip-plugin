@@ -45,7 +45,8 @@ import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 
 public class AcceleoRunner {
 
-    public String generateToString(String moduleQualifiedName, String templateName, String outputFilename, EObject modelRoot) {
+    public String generateToString(String moduleQualifiedName, String templateName, String outputFilename,
+            EObject modelRoot) {
         Path tempDir = null;
         try {
             tempDir = Files.createTempDirectory("acceleo_gen");
@@ -54,8 +55,7 @@ public class AcceleoRunner {
             // Standalone EMF environment
             ResourceSet resourceSetForModels = new ResourceSetImpl();
             resourceSetForModels.getResourceFactoryRegistry().getExtensionToFactoryMap().put(
-                Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl()
-            );
+                    Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
 
             EPackage.Registry.INSTANCE.put(EcorePackage.eNS_URI, EcorePackage.eINSTANCE);
             resourceSetForModels.getPackageRegistry().put(EcorePackage.eNS_URI, EcorePackage.eINSTANCE);
@@ -71,17 +71,15 @@ public class AcceleoRunner {
 
             // Acceleo envrionment setup
             IQualifiedNameResolver resolver = new ClassLoaderQualifiedNameResolver(
-                getClass().getClassLoader(),
-                EPackage.Registry.INSTANCE,
-                AcceleoParser.QUALIFIER_SEPARATOR
-            );
+                    getClass().getClassLoader(),
+                    EPackage.Registry.INSTANCE,
+                    AcceleoParser.QUALIFIER_SEPARATOR);
 
             Map<String, String> options = new LinkedHashMap<>();
             options.put(AcceleoUtil.NEW_LINE_OPTION, "\n");
 
             IQualifiedNameQueryEnvironment queryEnvironment = AcceleoUtil.newAcceleoQueryEnvironment(
-                options, resolver, resourceSetForModels, false
-            );
+                    options, resolver, resourceSetForModels, false);
             queryEnvironment.registerEPackage(EcorePackage.eINSTANCE);
 
             if (modelRoot instanceof EPackage pkg) {
@@ -91,7 +89,8 @@ public class AcceleoRunner {
             }
 
             // KMeta, KModel AQL services helpers
-            ServiceUtils.registerServices(queryEnvironment, ServiceUtils.getServices(queryEnvironment, AcceleoServices.class));
+            ServiceUtils.registerServices(queryEnvironment,
+                    ServiceUtils.getServices(queryEnvironment, AcceleoServices.class));
 
             // Acceleo evaluator
             AcceleoEvaluator evaluator = new AcceleoEvaluator(queryEnvironment.getLookupEngine(), "\n");
@@ -99,8 +98,7 @@ public class AcceleoRunner {
             resolver.addLoader(new JavaLoader(AcceleoParser.QUALIFIER_SEPARATOR, false));
 
             IAcceleoGenerationStrategy strategy = new DefaultGenerationStrategy(
-                resourceSetForModels.getURIConverter(), new DefaultWriterFactory()
-            );
+                    resourceSetForModels.getURIConverter(), new DefaultWriterFactory());
 
             // Module ast
             Object resolved = resolver.resolve(moduleQualifiedName);
@@ -110,11 +108,13 @@ public class AcceleoRunner {
 
             // Diagnostics, parsing errorrs
             if (module.getAst() != null && !module.getAst().getErrors().isEmpty()) {
-                StringBuilder parseErrors = new StringBuilder("[Acceleo Parse Errors in " + moduleQualifiedName + "]:\n");
+                StringBuilder parseErrors = new StringBuilder(
+                        "[Acceleo Parse Errors in " + moduleQualifiedName + "]:\n");
                 for (ASTNode err : module.getAst().getErrors()) {
                     int start = module.getAst().getStartPosition(err);
                     int end = module.getAst().getEndPosition(err);
-                    parseErrors.append(String.format(" - Syntax Error: %s (offset: %d..%d)\n", err.getClass().getSimpleName(), start, end));
+                    parseErrors.append(String.format(" - Syntax Error: %s (offset: %d..%d)\n",
+                            err.getClass().getSimpleName(), start, end));
                 }
                 throw new RuntimeException(parseErrors.toString());
             }
@@ -124,11 +124,13 @@ public class AcceleoRunner {
             IAcceleoValidationResult validationResult = validator.validate(module.getAst(), moduleQualifiedName);
             if (validationResult != null && !validationResult.getValidationMessages().isEmpty()) {
                 boolean hasErrors = false;
-                StringBuilder valErrors = new StringBuilder("[Acceleo Validation Messages for " + moduleQualifiedName + "]:\n");
+                StringBuilder valErrors = new StringBuilder(
+                        "[Acceleo Validation Messages for " + moduleQualifiedName + "]:\n");
                 for (IValidationMessage msg : validationResult.getValidationMessages()) {
                     if (msg.getLevel() == ValidationMessageLevel.ERROR) {
                         hasErrors = true;
-                        valErrors.append(String.format(" - [ERROR] %s (offset: %d..%d)\n", msg.getMessage(), msg.getStartPosition(), msg.getEndPosition()));
+                        valErrors.append(String.format(" - [ERROR] %s (offset: %d..%d)\n", msg.getMessage(),
+                                msg.getStartPosition(), msg.getEndPosition()));
                     }
                 }
                 if (hasErrors) {
@@ -152,9 +154,9 @@ public class AcceleoRunner {
             }
 
             Template targetTemplate = templates.stream()
-                .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(templateName))
-                .findFirst()
-                .orElse(templates.get(0));
+                    .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(templateName))
+                    .findFirst()
+                    .orElse(templates.get(0));
 
             // Bind arguments and generate text
             String parameterName = targetTemplate.getParameters().get(0).getName();
@@ -163,8 +165,8 @@ public class AcceleoRunner {
 
             URI logURI = AcceleoUtil.getlogURI(targetURI, options.get(AcceleoUtil.LOG_URI_OPTION));
             AcceleoUtil.generate(
-                targetTemplate, variables, evaluator, queryEnvironment, strategy, targetURI, logURI, new BasicMonitor()
-            );
+                    targetTemplate, variables, evaluator, queryEnvironment, strategy, targetURI, logURI,
+                    new BasicMonitor());
 
             // Runtime errors
             Diagnostic diagnostic = evaluator.getGenerationResult().getDiagnostic();
@@ -206,7 +208,8 @@ public class AcceleoRunner {
     }
 
     private void collectDiagnostics(Diagnostic diagnostic, StringBuilder sb) {
-        if (diagnostic.getSeverity() == Diagnostic.ERROR && diagnostic.getMessage() != null && !diagnostic.getMessage().isBlank()) {
+        if (diagnostic.getSeverity() == Diagnostic.ERROR && diagnostic.getMessage() != null
+                && !diagnostic.getMessage().isBlank()) {
             if (!"Acceleo parsing error see validation for more details".equals(diagnostic.getMessage())) {
                 sb.append("\n - ").append(diagnostic.getMessage());
             }

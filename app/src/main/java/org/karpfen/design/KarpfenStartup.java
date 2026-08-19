@@ -8,7 +8,7 @@ import org.karpfen.resource.KarpfenResourceInitializer;
 import java.util.Set;
 
 public class KarpfenStartup implements IStartup {
-    
+
     public static final String PLUGIN_ID = "org.karpfen.roundtrip.plugin";
 
     @Override
@@ -21,7 +21,8 @@ public class KarpfenStartup implements IStartup {
             Set<Viewpoint> viewpoints = ViewpointRegistry.getInstance().registerFromPlugin(odesignPath);
 
             System.out.println("=================================================");
-            System.out.println("[Karpfen] Sirius Viewpoints registered via IStartup: " + (viewpoints != null ? viewpoints.size() : 0));
+            System.out.println("[Karpfen] Sirius Viewpoints registered via IStartup: "
+                    + (viewpoints != null ? viewpoints.size() : 0));
             if (viewpoints != null) {
                 for (Viewpoint vp : viewpoints) {
                     System.out.println("  -> Loaded Viewpoint: " + vp.getName() + " (" + vp.getLabel() + ")");

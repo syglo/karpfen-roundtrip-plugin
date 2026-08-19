@@ -11,5 +11,3 @@ public class KstatesResourceFactory extends ResourceFactoryImpl {
         return new KstatesResource(uri);
     }
 }
-
-

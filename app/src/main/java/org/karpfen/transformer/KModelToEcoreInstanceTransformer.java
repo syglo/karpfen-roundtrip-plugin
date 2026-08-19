@@ -63,9 +63,9 @@ public class KModelToEcoreInstanceTransformer {
     public void saveToXmiFile(List<EObject> rootObjects, EPackage ePackage, File outputFile) throws IOException {
         ResourceSet resourceSet = new ResourceSetImpl();
         resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
-            .put("xmi", new XMIResourceFactoryImpl());
+                .put("xmi", new XMIResourceFactoryImpl());
         resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
-            .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+                .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
 
         resourceSet.getPackageRegistry().put(ePackage.getNsURI(), ePackage);
 
@@ -91,8 +91,7 @@ public class KModelToEcoreInstanceTransformer {
         EClass eClass = (EClass) ePackage.getEClassifier(dataObject.getOfType().getName());
         if (eClass == null) {
             throw new IllegalArgumentException(
-                "Metamodel EClass not found for type: " + dataObject.getOfType().getName()
-            );
+                    "Metamodel EClass not found for type: " + dataObject.getOfType().getName());
         }
 
         EObject eObject = ePackage.getEFactoryInstance().create(eClass);
@@ -179,8 +178,8 @@ public class KModelToEcoreInstanceTransformer {
 
     private String getObjectKey(DataObject dataObject) {
         return (dataObject.getId() != null && !dataObject.getId().isEmpty())
-            ? dataObject.getId()
-            : String.valueOf(System.identityHashCode(dataObject));
+                ? dataObject.getId()
+                : String.valueOf(System.identityHashCode(dataObject));
     }
 
     public Map<String, EObject> getEObjectMap() {

@@ -65,7 +65,8 @@ public class ManualSerializationTest {
         Path testOutputDir = Path.of("build/test-outputs");
         Files.createDirectories(testOutputDir);
         Files.writeString(testOutputDir.resolve("manual_cleaning_robot.kmeta"), generatedRaw, StandardCharsets.UTF_8);
-        Files.writeString(testOutputDir.resolve("format_manual_cleaning_robot.kmeta"), formattedKMeta, StandardCharsets.UTF_8);
+        Files.writeString(testOutputDir.resolve("format_manual_cleaning_robot.kmeta"), formattedKMeta,
+                StandardCharsets.UTF_8);
 
         // reparse and compare ast parity
         Metamodel reparsed = KmetaDSLConverter.INSTANCE.parseKmetaString(formattedKMeta, Collections.emptyList());
@@ -104,7 +105,8 @@ public class ManualSerializationTest {
         Path testOutputDir = Path.of("build/test-outputs");
         Files.createDirectories(testOutputDir);
         Files.writeString(testOutputDir.resolve("manual_cleaning_robot.kmodel"), generatedRaw, StandardCharsets.UTF_8);
-        Files.writeString(testOutputDir.resolve("format_manual_cleaning_robot.kmodel"), formattedKModel, StandardCharsets.UTF_8);
+        Files.writeString(testOutputDir.resolve("format_manual_cleaning_robot.kmodel"), formattedKModel,
+                StandardCharsets.UTF_8);
 
         // reparse and compare ast parity
         Model reparsedModel = KmodelDSLConverter.INSTANCE.parseKmodelString(formattedKModel, metaAST);

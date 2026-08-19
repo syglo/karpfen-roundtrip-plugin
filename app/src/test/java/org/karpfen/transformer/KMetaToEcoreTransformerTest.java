@@ -35,21 +35,21 @@ public class KMetaToEcoreTransformerTest {
     @Test
     void testKMetaToEcoreTransformation() {
         String kmetaCode = """
-            type "Point" "A point in 2D space" {
-                prop("x", "number")
-                prop("y", "number")
-            }
-            type "Obstacle" "An obstacle in the room" {
-                prop("tags", list("string"))
-            }
-            type "Robot" "A cleaning robot" {
-                prop("speed", "number")
-                prop("active", "boolean")
-                has("position", "Point")
-                knows("obstacles", list("Obstacle"))
-            }
-            """;
-        
+                type "Point" "A point in 2D space" {
+                    prop("x", "number")
+                    prop("y", "number")
+                }
+                type "Obstacle" "An obstacle in the room" {
+                    prop("tags", list("string"))
+                }
+                type "Robot" "A cleaning robot" {
+                    prop("speed", "number")
+                    prop("active", "boolean")
+                    has("position", "Point")
+                    knows("obstacles", list("Obstacle"))
+                }
+                """;
+
         Metamodel metamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(kmetaCode, java.util.Collections.emptyList());
         assertNotNull(metamodel, "Metamodel AST should parse successfully");
 
@@ -107,7 +107,7 @@ public class KMetaToEcoreTransformerTest {
 
         Model model = KmodelDSLConverter.INSTANCE.parseKmodelFile(kmodelFilePath, metamodel);
         assertNotNull(model, "Karpfen Metamodel instance AST must not be null");
-        
+
         KMetaToEcoreTransformer transformer = new KMetaToEcoreTransformer();
         EPackage ePackage = transformer.transform(metamodel, "roomdomain", "http://github/karpfen", "roomdomain");
 

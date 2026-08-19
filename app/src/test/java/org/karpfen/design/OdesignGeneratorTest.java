@@ -42,9 +42,9 @@ public class OdesignGeneratorTest {
         // Tests are failing without EMF and Sirius dependencies...
         // Register the .odesign / .xmi file extension with the XMI resource factory
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-            .put("odesign", new XMIResourceFactoryImpl());
+                .put("odesign", new XMIResourceFactoryImpl());
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-            .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+                .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
 
         // Register Sirius EPackages
         EPackage.Registry.INSTANCE.put(DescriptionPackage.eNS_URI, DescriptionPackage.eINSTANCE);
@@ -80,7 +80,7 @@ public class OdesignGeneratorTest {
         // Root Group exists
         assertNotNull(resource, "EMF Resource should load successfully.");
         assertEquals(1, resource.getContents().size(), "Resource must contain exactly one root Group element.");
-        
+
         assertTrue(resource.getContents().get(0) instanceof Group, "Root element must be an instance of Sirius Group.");
         Group rootGroup = (Group) resource.getContents().get(0);
         assertEquals("KarpfenGroup", rootGroup.getName());
@@ -94,7 +94,7 @@ public class OdesignGeneratorTest {
         // !! KMETA
         // Sirius Diagram Description for KMeta Class Diagram
         DiagramDescription kmetaDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
-            .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
+                .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
         assertEquals("KMetaClassDiagram", kmetaDiagram.getName());
         assertEquals("ecore.EPackage", kmetaDiagram.getDomainClass());
         assertEquals(1, kmetaDiagram.getContainerMappings().size());
@@ -114,18 +114,18 @@ public class OdesignGeneratorTest {
         // Check Edges
         assertEquals(2, kmetaDiagram.getEdgeMappings().size());
         EdgeMapping hasEdge = kmetaDiagram.getEdgeMappings().stream()
-            .filter(e -> e.getName().equals("HasCompositionEdge")).findFirst().orElseThrow();
+                .filter(e -> e.getName().equals("HasCompositionEdge")).findFirst().orElseThrow();
         assertTrue(hasEdge.isUseDomainElement());
         assertEquals("aql:self.eContainingClass", hasEdge.getSourceFinderExpression());
         assertEquals("aql:self.eType", hasEdge.getTargetFinderExpression());
 
         EdgeMapping knowsEdge = kmetaDiagram.getEdgeMappings().stream()
-            .filter(e -> e.getName().equals("KnowsAssociationEdge")).findFirst().orElseThrow();
+                .filter(e -> e.getName().equals("KnowsAssociationEdge")).findFirst().orElseThrow();
         assertTrue(knowsEdge.isUseDomainElement());
 
         // !! KMODEL
         DiagramDescription kmodelDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
-            .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
+                .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
         assertEquals("ecore.EObject", kmodelDiagram.getDomainClass());
         assertEquals(1, kmodelDiagram.getContainerMappings().size());
 
@@ -134,7 +134,8 @@ public class OdesignGeneratorTest {
         assertEquals("aql:self.eAllContents()->including(self)", eObjNode.getSemanticCandidatesExpression());
 
         assertEquals(2, kmodelDiagram.getEdgeMappings().size());
-        assertTrue(kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceContainmentEdge")));
+        assertTrue(
+                kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceContainmentEdge")));
         assertTrue(kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceReferenceEdge")));
     }
 
@@ -145,6 +146,7 @@ public class OdesignGeneratorTest {
         assertNotNull(generatedFile, "Generated file should not be null");
         assertTrue(generatedFile.exists(), "karfpen.odesign exist in src/main/resources/description/");
         assertTrue(generatedFile.length() > 0, "karpfen.odesign not empty");
-        //assertTrue(generatedFile.getAbsolutePath().endsWith("description" + File.separator + "karfpen.odesign"));
+        // assertTrue(generatedFile.getAbsolutePath().endsWith("description" +
+        // File.separator + "karfpen.odesign"));
     }
 }

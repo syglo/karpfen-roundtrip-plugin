@@ -7,7 +7,7 @@ import org.eclipse.jface.text.IDocument;
 import org.karpfen.serializer.KarpfenDslFormatter;
 
 public class KarpfenEditor extends TextEditor {
-    
+
     private final KarpfenColorManager colorManager;
 
     public KarpfenEditor() {

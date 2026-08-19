@@ -50,7 +50,8 @@ public class KMetaToEcoreTransformer {
             EClass eClass = factory.createEClass();
             eClass.setName(classType.getName());
 
-            // !! VERY IMPORTANT fix for kmodel, to have ability create new View KModel Diagramm
+            // !! VERY IMPORTANT fix for kmodel, to have ability create new View KModel
+            // Diagramm
             eClass.getESuperTypes().add(EcorePackage.Literals.EOBJECT);
 
             // Synthetic instance identifier attributes (helps later)
@@ -95,8 +96,7 @@ public class KMetaToEcoreTransformer {
                 EClass targetClass = eClassMap.get(rel.getReference().getClassTypeName());
                 if (targetClass == null) {
                     throw new IllegalArgumentException(
-                        "Target class '" + rel.getReference().getClassTypeName() + "' not found in metamodel."
-                    );
+                            "Target class '" + rel.getReference().getClassTypeName() + "' not found in metamodel.");
                 }
                 reference.setEType(targetClass);
 
@@ -116,12 +116,12 @@ public class KMetaToEcoreTransformer {
     public void saveToEcoreFile(EPackage ePackage, File outputFile) throws IOException {
         ResourceSet resourceSet = new ResourceSetImpl();
         resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
-            .put("ecore", new EcoreResourceFactoryImpl());
+                .put("ecore", new EcoreResourceFactoryImpl());
 
         URI fileUri = URI.createFileURI(outputFile.getAbsolutePath());
         Resource resource = resourceSet.createResource(fileUri);
         resource.getContents().add(ePackage);
-        
+
         resource.save(Collections.emptyMap());
     }
 

@@ -25,10 +25,10 @@ public class SetupTest {
     public void testKarpfenJarIsAccessible() {
         // Instantiate a builder class provided by karpfen-dsl-tools.jar
         MetamodelBuilder builder = new MetamodelBuilder();
-        
+
         // Assert that the builder object was successfully instantiated
         assertNotNull(builder, "It should not be null when initialized.");
-        
+
         System.out.println("Success, karpfen-dsl-tools.jar is linked.");
     }
 }

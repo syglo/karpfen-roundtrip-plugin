@@ -42,25 +42,23 @@ public class OdesignGenerator {
     // Init EMF and Sirius dependencies to run them in runner class.
     public static void initStandalone() {
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-            .put("odesign", new XMIResourceFactoryImpl());
+                .put("odesign", new XMIResourceFactoryImpl());
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-            .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+                .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
 
         // ECore deps
         EPackage.Registry.INSTANCE.put(EcorePackage.eNS_URI, EcorePackage.eINSTANCE);
-        
+
         // Sirius viewpoint
         EPackage.Registry.INSTANCE.put(
-            org.eclipse.sirius.viewpoint.description.DescriptionPackage.eNS_URI,
-            org.eclipse.sirius.viewpoint.description.DescriptionPackage.eINSTANCE
-        );
+                org.eclipse.sirius.viewpoint.description.DescriptionPackage.eNS_URI,
+                org.eclipse.sirius.viewpoint.description.DescriptionPackage.eINSTANCE);
         EPackage.Registry.INSTANCE.put(ViewpointPackage.eNS_URI, ViewpointPackage.eINSTANCE);
 
         // Sirius diagram and style
         EPackage.Registry.INSTANCE.put(
-            org.eclipse.sirius.diagram.description.DescriptionPackage.eNS_URI,
-            org.eclipse.sirius.diagram.description.DescriptionPackage.eINSTANCE
-        );
+                org.eclipse.sirius.diagram.description.DescriptionPackage.eNS_URI,
+                org.eclipse.sirius.diagram.description.DescriptionPackage.eINSTANCE);
         EPackage.Registry.INSTANCE.put(DiagramPackage.eNS_URI, DiagramPackage.eINSTANCE);
         EPackage.Registry.INSTANCE.put(StylePackage.eNS_URI, StylePackage.eINSTANCE);
     }
@@ -99,10 +97,11 @@ public class OdesignGenerator {
 
         // Register java services in sirius viewpoint
         // required to create visuals for object diagram
-        JavaExtension javaExt = org.eclipse.sirius.viewpoint.description.DescriptionFactory.eINSTANCE.createJavaExtension();
+        JavaExtension javaExt = org.eclipse.sirius.viewpoint.description.DescriptionFactory.eINSTANCE
+                .createJavaExtension();
         javaExt.setQualifiedClassName("org.karpfen.design.KarpfenDiagramServices");
         viewpoint.getOwnedJavaExtensions().add(javaExt);
-        
+
         ///////
         // !!! KMeta class diagram
         ///////
@@ -135,7 +134,8 @@ public class OdesignGenerator {
         attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes");
 
         NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
-        attrStyle.setLabelExpression("aql:self.name + ' : ' + if self.eType <> null then self.eType.name else 'EString' endif");
+        attrStyle.setLabelExpression(
+                "aql:self.name + ' : ' + if self.eType <> null then self.eType.name else 'EString' endif");
         attrStyle.setShowIcon(true);
         attrStyle.setLabelAlignment(LabelAlignment.LEFT);
         attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
@@ -149,7 +149,8 @@ public class OdesignGenerator {
         hasEdge.setName("HasCompositionEdge");
         hasEdge.setDomainClass("ecore.EReference");
         hasEdge.setUseDomainElement(true);
-        hasEdge.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)");
+        hasEdge.setSemanticCandidatesExpression(
+                "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)");
         hasEdge.getSourceMapping().add(eClassNode);
         hasEdge.getTargetMapping().add(eClassNode);
         hasEdge.setSourceFinderExpression("aql:self.eContainingClass");
@@ -169,7 +170,8 @@ public class OdesignGenerator {
         knowsEdge.setName("KnowsAssociationEdge");
         knowsEdge.setDomainClass("ecore.EReference");
         knowsEdge.setUseDomainElement(true);
-        knowsEdge.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not r.containment)");
+        knowsEdge.setSemanticCandidatesExpression(
+                "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not r.containment)");
         knowsEdge.getSourceMapping().add(eClassNode);
         knowsEdge.getTargetMapping().add(eClassNode);
         knowsEdge.setSourceFinderExpression("aql:self.eContainingClass");
@@ -183,7 +185,6 @@ public class OdesignGenerator {
 
         kmetaDiagram.getEdgeMappings().add(knowsEdge); // save
 
-
         ///////
         // !!! KModel object diagram
         ///////
@@ -192,7 +193,7 @@ public class OdesignGenerator {
         kmodelDiagram.setLabel("KModel Object Diagram");
         kmodelDiagram.setDomainClass("ecore.EObject");
         // Single uncontained root Room APB 2101
-        //kmodelDiagram.setPreconditionExpression("aql:self.eContainer().oclIsUndefined()");
+        // kmodelDiagram.setPreconditionExpression("aql:self.eContainer().oclIsUndefined()");
         kmodelDiagram.setPreconditionExpression("aql:self.eContainer() = null");
         kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
         viewpoint.getOwnedRepresentations().add(kmodelDiagram);

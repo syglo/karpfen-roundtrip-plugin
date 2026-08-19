@@ -23,7 +23,8 @@ public class AcceleoServices {
     // !!! KMeta Services helpers for .mtl
 
     public List<EClass> getOrderedClasses(EPackage pkg) {
-        if (pkg == null) return Collections.emptyList();
+        if (pkg == null)
+            return Collections.emptyList();
 
         String rootClassName = null;
         EAnnotation rootAnn = pkg.getEAnnotation(KARPFEN_URI);
@@ -52,7 +53,8 @@ public class AcceleoServices {
     }
 
     public List<EAttribute> getAttributes(EClass c) {
-        if (c == null) return Collections.emptyList();
+        if (c == null)
+            return Collections.emptyList();
         List<EAttribute> result = new ArrayList<>();
         for (EAttribute attr : c.getEAttributes()) {
             if (!KMetaToEcoreTransformer.ID_FEATURE_NAME.equals(attr.getName())) {
@@ -63,7 +65,8 @@ public class AcceleoServices {
     }
 
     public List<EReference> getContainmentReferences(EClass c) {
-        if (c == null) return Collections.emptyList();
+        if (c == null)
+            return Collections.emptyList();
         List<EReference> result = new ArrayList<>();
         for (EReference ref : c.getEReferences()) {
             if (ref.isContainment()) {
@@ -74,7 +77,8 @@ public class AcceleoServices {
     }
 
     public List<EReference> getAssociationReferences(EClass c) {
-        if (c == null) return Collections.emptyList();
+        if (c == null)
+            return Collections.emptyList();
         List<EReference> result = new ArrayList<>();
         for (EReference ref : c.getEReferences()) {
             if (!ref.isContainment()) {
@@ -89,7 +93,8 @@ public class AcceleoServices {
     }
 
     public String getDocumentation(EClass c) {
-        if (c == null) return "";
+        if (c == null)
+            return "";
         EAnnotation ann = c.getEAnnotation(GENMODEL_URI);
         if (ann != null && ann.getDetails().containsKey("documentation")) {
             return ann.getDetails().get("documentation");
@@ -98,7 +103,8 @@ public class AcceleoServices {
     }
 
     public String mapDataType(EClassifier d) {
-        if (d == null) return "string";
+        if (d == null)
+            return "string";
         if (d == EcorePackage.Literals.EDOUBLE || d == EcorePackage.Literals.EFLOAT
                 || d == EcorePackage.Literals.EINT || d == EcorePackage.Literals.ELONG
                 || "EDouble".equalsIgnoreCase(d.getName()) || "EFloat".equalsIgnoreCase(d.getName())
@@ -106,7 +112,8 @@ public class AcceleoServices {
                 || "number".equalsIgnoreCase(d.getName())) {
             return "number";
         }
-        if (d == EcorePackage.Literals.EBOOLEAN || "EBoolean".equalsIgnoreCase(d.getName()) || "boolean".equalsIgnoreCase(d.getName())) {
+        if (d == EcorePackage.Literals.EBOOLEAN || "EBoolean".equalsIgnoreCase(d.getName())
+                || "boolean".equalsIgnoreCase(d.getName())) {
             return "boolean";
         }
         return "string";
@@ -115,7 +122,8 @@ public class AcceleoServices {
     // !!! KModel Services helpers for .mtl
 
     public String getId(EObject obj) {
-        if (obj == null) return "_";
+        if (obj == null)
+            return "_";
         EStructuralFeature idFeature = obj.eClass().getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
         if (idFeature != null) {
             Object val = obj.eGet(idFeature);
@@ -131,7 +139,8 @@ public class AcceleoServices {
     }
 
     public List<EAttribute> getAllAttributes(EObject obj) {
-        if (obj == null || obj.eClass() == null) return Collections.emptyList();
+        if (obj == null || obj.eClass() == null)
+            return Collections.emptyList();
         List<EAttribute> result = new ArrayList<>();
         for (EAttribute attr : obj.eClass().getEAllAttributes()) {
             if (!KMetaToEcoreTransformer.ID_FEATURE_NAME.equals(attr.getName()) && obj.eIsSet(attr)) {
@@ -142,7 +151,8 @@ public class AcceleoServices {
     }
 
     public List<EReference> getAllContainmentReferences(EObject obj) {
-        if (obj == null || obj.eClass() == null) return Collections.emptyList();
+        if (obj == null || obj.eClass() == null)
+            return Collections.emptyList();
         List<EReference> result = new ArrayList<>();
         for (EReference ref : obj.eClass().getEAllReferences()) {
             if (ref.isContainment() && obj.eIsSet(ref)) {
@@ -153,7 +163,8 @@ public class AcceleoServices {
     }
 
     public List<EReference> getAllAssociationReferences(EObject obj) {
-        if (obj == null || obj.eClass() == null) return Collections.emptyList();
+        if (obj == null || obj.eClass() == null)
+            return Collections.emptyList();
         List<EReference> result = new ArrayList<>();
         for (EReference ref : obj.eClass().getEAllReferences()) {
             if (!ref.isContainment() && obj.eIsSet(ref)) {
@@ -164,15 +175,18 @@ public class AcceleoServices {
     }
 
     public List<String> getAttributeValues(EObject obj, EAttribute attr) {
-        if (obj == null || attr == null || !obj.eIsSet(attr)) return Collections.emptyList();
+        if (obj == null || attr == null || !obj.eIsSet(attr))
+            return Collections.emptyList();
         Object rawVal = obj.eGet(attr);
-        if (rawVal == null) return Collections.emptyList();
+        if (rawVal == null)
+            return Collections.emptyList();
 
         List<String> values = new ArrayList<>();
         if (attr.isMany()) {
             if (rawVal instanceof List<?> list) {
                 for (Object item : list) {
-                    if (item != null) values.add(item.toString());
+                    if (item != null)
+                        values.add(item.toString());
                 }
             }
         } else {
@@ -183,9 +197,11 @@ public class AcceleoServices {
 
     @SuppressWarnings("unchecked")
     public List<EObject> getContainedChildren(EObject obj, EReference ref) {
-        if (obj == null || ref == null || !ref.isContainment() || !obj.eIsSet(ref)) return Collections.emptyList();
+        if (obj == null || ref == null || !ref.isContainment() || !obj.eIsSet(ref))
+            return Collections.emptyList();
         Object rawVal = obj.eGet(ref);
-        if (rawVal == null) return Collections.emptyList();
+        if (rawVal == null)
+            return Collections.emptyList();
 
         if (ref.isMany()) {
             if (rawVal instanceof List<?> list) {
@@ -200,9 +216,11 @@ public class AcceleoServices {
 
     @SuppressWarnings("unchecked")
     public List<EObject> getReferenceTargets(EObject obj, EReference ref) {
-        if (obj == null || ref == null || ref.isContainment() || !obj.eIsSet(ref)) return Collections.emptyList();
+        if (obj == null || ref == null || ref.isContainment() || !obj.eIsSet(ref))
+            return Collections.emptyList();
         Object rawVal = obj.eGet(ref);
-        if (rawVal == null) return Collections.emptyList();
+        if (rawVal == null)
+            return Collections.emptyList();
 
         if (ref.isMany()) {
             if (rawVal instanceof List<?> list) {

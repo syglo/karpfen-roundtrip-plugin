@@ -10,8 +10,10 @@ import org.eclipse.sirius.viewpoint.DSemanticDecorator;
 public class KarpfenDiagramServices {
 
     // Only visual representation!
-    // Required for .kmodel diagram names to be rendered correctly (they are dynamic emf objects, aql limitations)
-    // For D2T they are not required, by selecting object box we can directly inside it edit values of variables
+    // Required for .kmodel diagram names to be rendered correctly (they are dynamic
+    // emf objects, aql limitations)
+    // For D2T they are not required, by selecting object box we can directly inside
+    // it edit values of variables
     // Header label for the object box id:type / type
     // Labels for slots attr = value
     public String getObjectLabel(EObject self) {
