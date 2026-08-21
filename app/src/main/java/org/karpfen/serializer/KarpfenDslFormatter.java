@@ -119,18 +119,24 @@ public class KarpfenDslFormatter {
                 List<String> knowsLines = new ArrayList<>();
 
                 for (KmetaParser.RuleContext rule : ctx.rule_list().rule_()) {
-                    if (rule.prop_rule() != null && rule.prop_rule().STRING() != null) {
-                        String key = unquote(rule.prop_rule().STRING().getText());
-                        String val = formatRuleValue(rule.prop_rule().rule_value());
-                        propLines.add(INDENT + String.format("prop(\"%s\", %s)", key, val));
-                    } else if (rule.has_rule() != null && rule.has_rule().STRING() != null) {
-                        String key = unquote(rule.has_rule().STRING().getText());
-                        String val = formatRuleValue(rule.has_rule().rule_value());
-                        hasLines.add(INDENT + String.format("has(\"%s\", %s)", key, val));
-                    } else if (rule.knows_rule() != null && rule.knows_rule().STRING() != null) {
-                        String key = unquote(rule.knows_rule().STRING().getText());
-                        String val = formatRuleValue(rule.knows_rule().rule_value());
-                        knowsLines.add(INDENT + String.format("knows(\"%s\", %s)", key, val));
+                    if (rule.prop_rule() != null) {
+                        if (rule.prop_rule().STRING() != null && rule.prop_rule().STRING().getText() != null) {
+                            String key = unquote(rule.prop_rule().STRING().getText());
+                            String val = formatRuleValue(rule.prop_rule().rule_value());
+                            propLines.add(INDENT + String.format("prop(\"%s\", %s)", key, val));
+                        }
+                    } else if (rule.has_rule() != null) {
+                        if (rule.has_rule().STRING() != null && rule.has_rule().STRING().getText() != null) {
+                            String key = unquote(rule.has_rule().STRING().getText());
+                            String val = formatRuleValue(rule.has_rule().rule_value());
+                            hasLines.add(INDENT + String.format("has(\"%s\", %s)", key, val));
+                        }
+                    } else if (rule.knows_rule() != null) {
+                        if (rule.knows_rule().STRING() != null && rule.knows_rule().STRING().getText() != null) {
+                            String key = unquote(rule.knows_rule().STRING().getText());
+                            String val = formatRuleValue(rule.knows_rule().rule_value());
+                            knowsLines.add(INDENT + String.format("knows(\"%s\", %s)", key, val));
+                        }
                     }
                 }
 

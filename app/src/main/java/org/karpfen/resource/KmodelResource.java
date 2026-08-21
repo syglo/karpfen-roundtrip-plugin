@@ -53,7 +53,8 @@ public class KmodelResource extends ResourceImpl {
             // find metamodel .kmeta for .kmodel
             MetamodelResolution resolution = resolveMetamodel(options);
             if (resolution.metamodel == null || resolution.ePackage == null) {
-                throw new IllegalArgumentException("Could not resolve Metamodel .kmeta for: " + getURI());
+                throw new IllegalArgumentException(
+                        "Could not resolve Metamodel .kmeta for: " + getURI().lastSegment());
             }
 
             // aql visibility for classifiers
@@ -75,15 +76,13 @@ public class KmodelResource extends ResourceImpl {
             KarpfenProblemMarkerManager.clearMarkers(getURI());
 
         } catch (Throwable t) {
-            // throw new IOException("[Karpfen] Failed to load .kmeta resource from: " +
-            // getURI(), e);
+            int line = KarpfenProblemMarkerManager.findOffendingLine(t, content);
+            String message = KarpfenProblemMarkerManager.formatUserMessage(t);
 
-            // Soft failure, record it to emf and problem marker
-            int line = KarpfenProblemMarkerManager.extractLineNumber(t);
-            getErrors().add(new KarpfenDiagnostic(t.getMessage(), getURI().toString(), line, 0));
-            KarpfenProblemMarkerManager.reportError(getURI(), t);
+            getErrors().add(new KarpfenDiagnostic(message, getURI().toString(), line, 0));
+            KarpfenProblemMarkerManager.reportError(getURI(), content, t);
 
-            System.err.println("[Karpfen] Validation error in .kmodel" + t.getMessage());
+            System.err.println("[Karpfen] Validation error in .kmodel: " + message);
         }
     }
 

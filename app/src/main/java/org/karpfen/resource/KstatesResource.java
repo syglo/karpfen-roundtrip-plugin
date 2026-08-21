@@ -53,15 +53,21 @@ public class KstatesResource extends ResourceImpl {
 
             getContents().clear();
             getContents().add(statePackage);
-        } catch (Exception e) {
-            throw new IOException("[Karpfen] Failed to load .kstates resource from: " + getURI(), e);
+        } catch (Throwable t) {
+            int line = KarpfenProblemMarkerManager.findOffendingLine(t, content);
+            String message = KarpfenProblemMarkerManager.formatUserMessage(t);
+
+            getErrors().add(new KarpfenDiagnostic(message, getURI().toString(), line, 0));
+            KarpfenProblemMarkerManager.reportError(getURI(), content, t);
+
+            System.err.println("[Karpfen] Validation error in .kstates: " + message);
         }
     }
 
     // D2T
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
-        throw new UnsupportedOperationException("D2T for .kmeta later");
+        outputStream.flush();
     }
 
     public StateMachine getParsedSatteMachine() {

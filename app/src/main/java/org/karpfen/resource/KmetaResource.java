@@ -62,15 +62,14 @@ public class KmetaResource extends ResourceImpl {
             KarpfenProblemMarkerManager.clearMarkers(getURI());
 
         } catch (Throwable t) {
-            // throw new IOException("[Karpfen] Failed to load .kmeta resource from: " +
-            // getURI(), e);
-
             // Soft failure, record it to emf and problem marker
-            int line = KarpfenProblemMarkerManager.extractLineNumber(t);
-            getErrors().add(new KarpfenDiagnostic(t.getMessage(), getURI().toString(), line, 0));
-            KarpfenProblemMarkerManager.reportError(getURI(), t);
+            int line = KarpfenProblemMarkerManager.findOffendingLine(t, content);
+            String message = KarpfenProblemMarkerManager.formatUserMessage(t);
 
-            System.err.println("[Karpfen] Validation error in .kmeta" + t.getMessage());
+            getErrors().add(new KarpfenDiagnostic(message, getURI().toString(), line, 0));
+            KarpfenProblemMarkerManager.reportError(getURI(), content, t);
+
+            System.err.println("[Karpfen] Validation error in .kmeta: " + message);
         }
     }
 
