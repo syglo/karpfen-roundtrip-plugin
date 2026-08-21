@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ASCII"?>
-<description:Group xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:description="http://www.eclipse.org/sirius/description/1.1.0" xmlns:description_1="http://www.eclipse.org/sirius/diagram/description/1.1.0" xmlns:style="http://www.eclipse.org/sirius/diagram/description/style/1.1.0" name="KarpfenGroup">
+<description:Group xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:description="http://www.eclipse.org/sirius/description/1.1.0" xmlns:description_1="http://www.eclipse.org/sirius/diagram/description/1.1.0" xmlns:style="http://www.eclipse.org/sirius/diagram/description/style/1.1.0" xmlns:tool="http://www.eclipse.org/sirius/diagram/description/tool/1.1.0" xmlns:tool_1="http://www.eclipse.org/sirius/description/tool/1.1.0" name="KarpfenGroup">
   <ownedViewpoints name="KarpfenViewpoint" label="Karpfen Visualizations">
     <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KMetaClassDiagram" label="KMeta Class Diagram" domainClass="ecore.EPackage">
       <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
@@ -13,8 +13,8 @@
           <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
         </style>
       </edgeMappings>
-      <containerMappings name="EClassNode" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass)" domainClass="ecore.EClass" childrenPresentation="List">
-        <subNodeMappings name="EAttributeNode" semanticCandidatesExpression="aql:self.eAttributes" domainClass="ecore.EAttribute">
+      <containerMappings name="EClassNode" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@toolSection/@ownedTools[name='EditClassNameTool']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass)" domainClass="ecore.EClass" childrenPresentation="List">
+        <subNodeMappings name="EAttributeNode" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@toolSection/@ownedTools[name='EditAttributeNameTool']" semanticCandidatesExpression="aql:self.eAttributes" domainClass="ecore.EAttribute">
           <style xsi:type="style:SquareDescription" labelExpression="aql:self.name + ' : ' + if self.eType &lt;> null then self.eType.name else 'EString' endif" labelAlignment="LEFT" labelPosition="node">
             <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
             <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
@@ -28,6 +28,73 @@
           <foregroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='light_gray']"/>
         </style>
       </containerMappings>
+      <toolSection name="KMetaModelingTools" label="KMeta Metamodel Entities">
+        <ownedTools xsi:type="tool:ContainerCreationDescription" name="CreateClassTool" label="New Type" containerMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@containerMappings[name='EClassNode']">
+          <variable name="container"/>
+          <viewVariable name="containerView"/>
+          <initialOperation>
+            <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:self">
+              <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EClass" referenceName="eClassifiers" variableName="newClass">
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'NewType'"/>
+              </subModelOperations>
+            </firstModelOperations>
+          </initialOperation>
+        </ownedTools>
+        <ownedTools xsi:type="tool:NodeCreationDescription" name="CreateAttributeTool" label="New Property (prop)" nodeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@containerMappings[name='EClassNode']/@subNodeMappings[name='EAttributeNode']">
+          <variable name="container"/>
+          <viewVariable name="containerView"/>
+          <initialOperation>
+            <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:container">
+              <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EAttribute" referenceName="eStructuralFeatures" variableName="newAttr">
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'newProp'"/>
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:ecore::EString"/>
+              </subModelOperations>
+            </firstModelOperations>
+          </initialOperation>
+        </ownedTools>
+        <ownedTools xsi:type="tool:DirectEditLabel" name="EditClassNameTool">
+          <mask mask="{0}"/>
+          <initialOperation>
+            <firstModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:arg0"/>
+          </initialOperation>
+        </ownedTools>
+        <ownedTools xsi:type="tool:DirectEditLabel" name="EditAttributeNameTool">
+          <mask mask="{0}"/>
+          <initialOperation>
+            <firstModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:arg0"/>
+          </initialOperation>
+        </ownedTools>
+        <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateHasEdge" label="has (Composition)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@edgeMappings[name='HasCompositionEdge']">
+          <sourceVariable name="source"/>
+          <targetVariable name="target"/>
+          <sourceViewVariable name="sourceView"/>
+          <targetViewVariable name="targetView"/>
+          <initialOperation>
+            <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:source">
+              <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EReference" referenceName="eStructuralFeatures" variableName="newRef">
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'has_' + target.name.toLowerFirst()"/>
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:target"/>
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="containment" valueExpression="aql:true"/>
+              </subModelOperations>
+            </firstModelOperations>
+          </initialOperation>
+        </ownedTools>
+        <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateKnowsEdge" label="knows (Association)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@edgeMappings[name='KnowsAssociationEdge']">
+          <sourceVariable name="source"/>
+          <targetVariable name="target"/>
+          <sourceViewVariable name="sourceView"/>
+          <targetViewVariable name="targetView"/>
+          <initialOperation>
+            <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:source">
+              <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EReference" referenceName="eStructuralFeatures" variableName="newKnowsRef">
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'knows_' + target.name.toLowerFirst()"/>
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:target"/>
+                <subModelOperations xsi:type="tool_1:SetValue" featureName="containment" valueExpression="aql:false"/>
+              </subModelOperations>
+            </firstModelOperations>
+          </initialOperation>
+        </ownedTools>
+      </toolSection>
     </ownedRepresentations>
     <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject" preconditionExpression="aql:self.eContainer() = null">
       <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
