@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.eclipse.emf.common.util.URI;
+import org.eclipse.emf.ecore.EClassifier;
+import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
 import org.karpfen.serializer.AcceleoKMetaSerializer;
@@ -28,6 +30,26 @@ public class KmetaResource extends ResourceImpl {
 
     public KmetaResource(URI uri) {
         super(uri);
+    }
+
+    @Override
+    public EObject getEObject(String uriFragment) {
+        if (uriFragment != null && !getContents().isEmpty() && getContents().get(0) instanceof EPackage pkg) {
+            String name = uriFragment;
+            if (name.startsWith("//")) {
+                name = name.substring(2);
+            } else if (name.startsWith("/")) {
+                name = name.substring(1);
+            }
+            if (name.startsWith("@eClassifiers.")) {
+                name = name.substring("@eClassifiers.".length());
+            }
+            EClassifier classifier = pkg.getEClassifier(name);
+            if (classifier != null) {
+                return classifier;
+            }
+        }
+        return super.getEObject(uriFragment);
     }
 
     // T2D

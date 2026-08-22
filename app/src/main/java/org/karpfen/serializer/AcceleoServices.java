@@ -12,7 +12,7 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
-import org.eclipse.emf.ecore.EcorePackage;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 
 public class AcceleoServices {
@@ -105,15 +105,15 @@ public class AcceleoServices {
     public String mapDataType(EClassifier d) {
         if (d == null)
             return "string";
-        if (d == EcorePackage.Literals.EDOUBLE || d == EcorePackage.Literals.EFLOAT
-                || d == EcorePackage.Literals.EINT || d == EcorePackage.Literals.ELONG
-                || "EDouble".equalsIgnoreCase(d.getName()) || "EFloat".equalsIgnoreCase(d.getName())
-                || "EInt".equalsIgnoreCase(d.getName()) || "ELong".equalsIgnoreCase(d.getName())
-                || "number".equalsIgnoreCase(d.getName())) {
+        String name = d.getName();
+        if (name == null)
+            return "string";
+        String lower = name.toLowerCase();
+        if (lower.contains("double") || lower.contains("float") || lower.contains("int") || lower.contains("long")
+                || lower.contains("number")) {
             return "number";
         }
-        if (d == EcorePackage.Literals.EBOOLEAN || "EBoolean".equalsIgnoreCase(d.getName())
-                || "boolean".equalsIgnoreCase(d.getName())) {
+        if (lower.contains("bool")) {
             return "boolean";
         }
         return "string";
@@ -124,8 +124,12 @@ public class AcceleoServices {
     public String getId(EObject obj) {
         if (obj == null)
             return "_";
-        EStructuralFeature idFeature = obj.eClass().getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
-        if (idFeature != null) {
+        EClass eClass = resolveEClass(obj);
+        if (eClass == null)
+            return "_";
+
+        EStructuralFeature idFeature = eClass.getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
+        if (idFeature != null && obj.eIsSet(idFeature)) {
             Object val = obj.eGet(idFeature);
             if (val != null && !val.toString().isBlank()) {
                 return val.toString().trim();
@@ -135,14 +139,21 @@ public class AcceleoServices {
     }
 
     public String getClassName(EObject obj) {
-        return (obj != null && obj.eClass() != null) ? obj.eClass().getName() : "";
+        if (obj == null)
+            return "";
+        EClass eClass = resolveEClass(obj);
+        return (eClass != null && eClass.getName() != null) ? eClass.getName() : "";
     }
 
     public List<EAttribute> getAllAttributes(EObject obj) {
-        if (obj == null || obj.eClass() == null)
+        if (obj == null)
             return Collections.emptyList();
+        EClass eClass = resolveEClass(obj);
+        if (eClass == null)
+            return Collections.emptyList();
+
         List<EAttribute> result = new ArrayList<>();
-        for (EAttribute attr : obj.eClass().getEAllAttributes()) {
+        for (EAttribute attr : eClass.getEAllAttributes()) {
             if (!KMetaToEcoreTransformer.ID_FEATURE_NAME.equals(attr.getName()) && obj.eIsSet(attr)) {
                 result.add(attr);
             }
@@ -151,10 +162,14 @@ public class AcceleoServices {
     }
 
     public List<EReference> getAllContainmentReferences(EObject obj) {
-        if (obj == null || obj.eClass() == null)
+        if (obj == null)
             return Collections.emptyList();
+        EClass eClass = resolveEClass(obj);
+        if (eClass == null)
+            return Collections.emptyList();
+
         List<EReference> result = new ArrayList<>();
-        for (EReference ref : obj.eClass().getEAllReferences()) {
+        for (EReference ref : eClass.getEAllReferences()) {
             if (ref.isContainment() && obj.eIsSet(ref)) {
                 result.add(ref);
             }
@@ -163,10 +178,14 @@ public class AcceleoServices {
     }
 
     public List<EReference> getAllAssociationReferences(EObject obj) {
-        if (obj == null || obj.eClass() == null)
+        if (obj == null)
             return Collections.emptyList();
+        EClass eClass = resolveEClass(obj);
+        if (eClass == null)
+            return Collections.emptyList();
+
         List<EReference> result = new ArrayList<>();
-        for (EReference ref : obj.eClass().getEAllReferences()) {
+        for (EReference ref : eClass.getEAllReferences()) {
             if (!ref.isContainment() && obj.eIsSet(ref)) {
                 result.add(ref);
             }
@@ -182,12 +201,10 @@ public class AcceleoServices {
             return Collections.emptyList();
 
         List<String> values = new ArrayList<>();
-        if (attr.isMany()) {
-            if (rawVal instanceof List<?> list) {
-                for (Object item : list) {
-                    if (item != null)
-                        values.add(item.toString());
-                }
+        if (attr.isMany() && rawVal instanceof List<?> list) {
+            for (Object item : list) {
+                if (item != null)
+                    values.add(item.toString());
             }
         } else {
             values.add(rawVal.toString());
@@ -203,11 +220,8 @@ public class AcceleoServices {
         if (rawVal == null)
             return Collections.emptyList();
 
-        if (ref.isMany()) {
-            if (rawVal instanceof List<?> list) {
-                return (List<EObject>) list;
-            }
-            return Collections.emptyList();
+        if (ref.isMany() && rawVal instanceof List<?> list) {
+            return (List<EObject>) list;
         } else if (rawVal instanceof EObject child) {
             return Collections.singletonList(child);
         }
@@ -222,14 +236,23 @@ public class AcceleoServices {
         if (rawVal == null)
             return Collections.emptyList();
 
-        if (ref.isMany()) {
-            if (rawVal instanceof List<?> list) {
-                return (List<EObject>) list;
-            }
-            return Collections.emptyList();
+        if (ref.isMany() && rawVal instanceof List<?> list) {
+            return (List<EObject>) list;
         } else if (rawVal instanceof EObject target) {
             return Collections.singletonList(target);
         }
         return Collections.emptyList();
+    }
+
+    private EClass resolveEClass(EObject obj) {
+        EClass eClass = obj.eClass();
+        if (eClass != null && eClass.eIsProxy()) {
+            EObject resolved = EcoreUtil.resolve(eClass, obj);
+            if (resolved instanceof EClass resolvedClass && !resolvedClass.eIsProxy()) {
+                return resolvedClass;
+            }
+            return null;
+        }
+        return eClass;
     }
 }

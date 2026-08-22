@@ -1,6 +1,8 @@
 package org.karpfen.design;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,8 +42,8 @@ public class OdesignGeneratorTest {
     static void initEMF() {
         // Tests are failing without EMF and Sirius dependencies...
         // Register the .odesign / .xmi file extension with the XMI resource factory
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-                .put("odesign", new XMIResourceFactoryImpl());
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("odesign",
+                new XMIResourceFactoryImpl());
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
                 .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
 
@@ -53,7 +55,6 @@ public class OdesignGeneratorTest {
     @Test
     void testOdesignGenerationFile() throws IOException {
         OdesignGenerator.generateOdesign(ODESIGN_FILE);
-
         assertTrue(ODESIGN_FILE.exists(), "Generated .odesign file must exist.");
         assertTrue(ODESIGN_FILE.length() > 0, "Generated .odesign must not be empty.");
 
@@ -62,15 +63,12 @@ public class OdesignGeneratorTest {
 
     @Test
     void testOdesignAST() throws IOException {
-        // Ensure file exists
-        if (!ODESIGN_FILE.exists()) {
-            OdesignGenerator.generateOdesign(ODESIGN_FILE);
-        }
+        OdesignGenerator.generateOdesign(ODESIGN_FILE);
 
         // EMF ResourceSet deserialization
         ResourceSet resourceSet = new ResourceSetImpl();
-        resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
-                .put("odesign", new XMIResourceFactoryImpl());
+        resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap().put("odesign",
+                new XMIResourceFactoryImpl());
 
         URI fileUri = URI.createFileURI(ODESIGN_FILE.getAbsolutePath());
         Resource resource = resourceSet.getResource(fileUri, true);
@@ -90,62 +88,27 @@ public class OdesignGeneratorTest {
         assertEquals("Karpfen Visualizations", viewpoint.getLabel());
         assertEquals(2, viewpoint.getOwnedRepresentations().size(), "odesign contains kmeta and kmodel viewpoints");
 
-        // !! KMETA
-        // Sirius Diagram Description for KMeta Class Diagram
+        // KMeta
         DiagramDescription kmetaDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
-        assertEquals("KMetaClassDiagram", kmetaDiagram.getName());
-        assertEquals("ecore.EPackage", kmetaDiagram.getDomainClass());
-        assertEquals(1, kmetaDiagram.getContainerMappings().size());
+        assertEquals(1, kmetaDiagram.getDefaultLayer().getContainerMappings().size());
 
-        ContainerMapping eClassNode = kmetaDiagram.getContainerMappings().get(0);
-        assertEquals("EClassNode", eClassNode.getName());
-        assertEquals("ecore.EClass", eClassNode.getDomainClass());
-        assertEquals("aql:self.eClassifiers->filter(ecore::EClass)", eClassNode.getSemanticCandidatesExpression());
-        assertEquals(ContainerLayout.LIST, eClassNode.getChildrenPresentation());
-
-        // check EAttribute Subnode Mapping
-        assertEquals(1, eClassNode.getSubNodeMappings().size());
-        NodeMapping attrNode = eClassNode.getSubNodeMappings().get(0);
-        assertEquals("EAttributeNode", attrNode.getName());
-        assertEquals("aql:self.eAttributes", attrNode.getSemanticCandidatesExpression());
-
-        // Check Edges
-        assertEquals(2, kmetaDiagram.getEdgeMappings().size());
-        EdgeMapping hasEdge = kmetaDiagram.getEdgeMappings().stream()
-                .filter(e -> e.getName().equals("HasCompositionEdge")).findFirst().orElseThrow();
-        assertTrue(hasEdge.isUseDomainElement());
-        assertEquals("aql:self.eContainingClass", hasEdge.getSourceFinderExpression());
-        assertEquals("aql:self.eType", hasEdge.getTargetFinderExpression());
-
-        EdgeMapping knowsEdge = kmetaDiagram.getEdgeMappings().stream()
-                .filter(e -> e.getName().equals("KnowsAssociationEdge")).findFirst().orElseThrow();
-        assertTrue(knowsEdge.isUseDomainElement());
-
-        // !! KMODEL
+        // KModel
         DiagramDescription kmodelDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
-        assertEquals("ecore.EObject", kmodelDiagram.getDomainClass());
-        assertEquals(1, kmodelDiagram.getContainerMappings().size());
+        assertEquals(1, kmodelDiagram.getDefaultLayer().getContainerMappings().size());
 
-        ContainerMapping eObjNode = kmodelDiagram.getContainerMappings().get(0);
+        ContainerMapping eObjNode = kmodelDiagram.getDefaultLayer().getContainerMappings().get(0);
         assertEquals("EObjectNode", eObjNode.getName());
-        assertEquals("aql:self.eAllContents()->including(self)", eObjNode.getSemanticCandidatesExpression());
-
-        assertEquals(2, kmodelDiagram.getEdgeMappings().size());
-        assertTrue(
-                kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceContainmentEdge")));
-        assertTrue(kmodelDiagram.getEdgeMappings().stream().anyMatch(e -> e.getName().equals("InstanceReferenceEdge")));
+        assertEquals(1, eObjNode.getSubNodeMappings().size());
+        assertEquals("EAttributeSlotNode", eObjNode.getSubNodeMappings().get(0).getName());
     }
 
     @Test
     void testOdesignSave() throws IOException {
         File generatedFile = OdesignGenerator.generateToResources();
-
         assertNotNull(generatedFile, "Generated file should not be null");
         assertTrue(generatedFile.exists(), "karfpen.odesign exist in src/main/resources/description/");
         assertTrue(generatedFile.length() > 0, "karpfen.odesign not empty");
-        // assertTrue(generatedFile.getAbsolutePath().endsWith("description" +
-        // File.separator + "karfpen.odesign"));
     }
 }

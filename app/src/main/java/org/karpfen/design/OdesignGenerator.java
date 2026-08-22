@@ -23,7 +23,9 @@ import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DescriptionFactory;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
 import org.eclipse.sirius.diagram.description.EdgeMapping;
+import org.eclipse.sirius.diagram.description.Layer;
 import org.eclipse.sirius.diagram.description.NodeMapping;
+import org.eclipse.sirius.diagram.description.style.CenterLabelStyleDescription;
 import org.eclipse.sirius.diagram.description.style.EdgeStyleDescription;
 import org.eclipse.sirius.diagram.description.style.FlatContainerStyleDescription;
 import org.eclipse.sirius.diagram.description.style.NodeStyleDescription;
@@ -44,6 +46,7 @@ import org.eclipse.sirius.viewpoint.description.tool.CreateInstance;
 import org.eclipse.sirius.viewpoint.description.tool.InitEdgeCreationOperation;
 import org.eclipse.sirius.viewpoint.description.tool.InitialNodeCreationOperation;
 import org.eclipse.sirius.viewpoint.description.tool.InitialOperation;
+import org.eclipse.sirius.viewpoint.description.tool.OperationAction;
 import org.eclipse.sirius.viewpoint.description.tool.SetValue;
 
 public class OdesignGenerator {
@@ -52,26 +55,27 @@ public class OdesignGenerator {
 
     // Init EMF and Sirius dependencies to run them in runner class.
     public static void initStandalone() {
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-                .put("odesign", new XMIResourceFactoryImpl());
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-                .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("odesign", new XMIResourceFactoryImpl());
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put(Resource.Factory.Registry.DEFAULT_EXTENSION,
+                new XMIResourceFactoryImpl());
 
         // ECore deps
         EPackage.Registry.INSTANCE.put(EcorePackage.eNS_URI, EcorePackage.eINSTANCE);
 
         // Sirius viewpoint
-        EPackage.Registry.INSTANCE.put(
-                org.eclipse.sirius.viewpoint.description.DescriptionPackage.eNS_URI,
+        EPackage.Registry.INSTANCE.put(org.eclipse.sirius.viewpoint.description.DescriptionPackage.eNS_URI,
                 org.eclipse.sirius.viewpoint.description.DescriptionPackage.eINSTANCE);
-        EPackage.Registry.INSTANCE.put(ViewpointPackage.eNS_URI, ViewpointPackage.eINSTANCE);
 
         // Sirius diagram and style
-        EPackage.Registry.INSTANCE.put(
-                org.eclipse.sirius.diagram.description.DescriptionPackage.eNS_URI,
+        EPackage.Registry.INSTANCE.put(ViewpointPackage.eNS_URI, ViewpointPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(org.eclipse.sirius.diagram.description.DescriptionPackage.eNS_URI,
                 org.eclipse.sirius.diagram.description.DescriptionPackage.eINSTANCE);
         EPackage.Registry.INSTANCE.put(DiagramPackage.eNS_URI, DiagramPackage.eINSTANCE);
         EPackage.Registry.INSTANCE.put(StylePackage.eNS_URI, StylePackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(org.eclipse.sirius.diagram.description.tool.ToolPackage.eNS_URI,
+                org.eclipse.sirius.diagram.description.tool.ToolPackage.eINSTANCE);
+        EPackage.Registry.INSTANCE.put(org.eclipse.sirius.viewpoint.description.tool.ToolPackage.eNS_URI,
+                org.eclipse.sirius.viewpoint.description.tool.ToolPackage.eINSTANCE);
     }
 
     // Save odesign in src/main/resources/ to be packaged in .jar
@@ -123,6 +127,11 @@ public class OdesignGenerator {
         kmetaDiagram.getMetamodel().add(EcorePackage.eINSTANCE); // aql requires it
         viewpoint.getOwnedRepresentations().add(kmetaDiagram);
 
+        Layer kmetaDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
+        kmetaDefaultLayer.setName("Default");
+        kmetaDefaultLayer.setLabel("Default");
+        kmetaDiagram.setDefaultLayer(kmetaDefaultLayer);
+
         // Class container node - EClass
         ContainerMapping eClassNode = DescriptionFactory.eINSTANCE.createContainerMapping();
         eClassNode.setName("EClassNode");
@@ -131,22 +140,21 @@ public class OdesignGenerator {
         eClassNode.setChildrenPresentation(ContainerLayout.LIST);
 
         FlatContainerStyleDescription classStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
-        classStyle.setLabelExpression("aql:self.name");
+        classStyle.setLabelExpression("aql:self.getKMetaClassLabel()");
         classStyle.setShowIcon(true);
         classStyle.setBorderSizeComputationExpression("1");
         eClassNode.setStyle(classStyle);
 
-        kmetaDiagram.getContainerMappings().add(eClassNode); // save
+        kmetaDefaultLayer.getContainerMappings().add(eClassNode); // save
 
         // Class attributes subnodes - EAttribute in EClass
         NodeMapping attributeNode = DescriptionFactory.eINSTANCE.createNodeMapping();
         attributeNode.setName("EAttributeNode");
         attributeNode.setDomainClass("ecore.EAttribute");
-        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes");
+        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes->select(a | a.name <> '__id__')");
 
         NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
-        attrStyle.setLabelExpression(
-                "aql:self.name + ' : ' + if self.eType <> null then self.eType.name else 'EString' endif");
+        attrStyle.setLabelExpression("aql:self.getKMetaAttributeLabel()");
         attrStyle.setShowIcon(true);
         attrStyle.setLabelAlignment(LabelAlignment.LEFT);
         attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
@@ -156,48 +164,56 @@ public class OdesignGenerator {
         eClassNode.getSubNodeMappings().add(attributeNode);
 
         // Edge has - composition reference
-        EdgeMapping hasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        hasEdge.setName("HasCompositionEdge");
-        hasEdge.setDomainClass("ecore.EReference");
-        hasEdge.setUseDomainElement(true);
-        hasEdge.setSemanticCandidatesExpression(
+        EdgeMapping kmetaHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        kmetaHasEdge.setName("HasCompositionEdge");
+        kmetaHasEdge.setDomainClass("ecore.EReference");
+        kmetaHasEdge.setUseDomainElement(true);
+        kmetaHasEdge.setSemanticCandidatesExpression(
                 "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)");
-        hasEdge.getSourceMapping().add(eClassNode);
-        hasEdge.getTargetMapping().add(eClassNode);
-        hasEdge.setSourceFinderExpression("aql:self.eContainingClass");
-        hasEdge.setTargetFinderExpression("aql:self.eType");
+        kmetaHasEdge.getSourceMapping().add(eClassNode);
+        kmetaHasEdge.getTargetMapping().add(eClassNode);
+        kmetaHasEdge.setSourceFinderExpression("aql:self.eContainingClass");
+        kmetaHasEdge.setTargetFinderExpression("aql:self.eType");
 
         EdgeStyleDescription hasEdgeStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
         hasEdgeStyle.setLineStyle(LineStyle.SOLID_LITERAL);
         hasEdgeStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
         hasEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         hasEdgeStyle.setSizeComputationExpression("1");
-        hasEdge.setStyle(hasEdgeStyle);
+        CenterLabelStyleDescription kmetaHasLabelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        kmetaHasLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
+        kmetaHasLabelStyle.setShowIcon(false);
+        hasEdgeStyle.setCenterLabelStyleDescription(kmetaHasLabelStyle);
+        kmetaHasEdge.setStyle(hasEdgeStyle);
 
-        kmetaDiagram.getEdgeMappings().add(hasEdge); // save
+        kmetaDefaultLayer.getEdgeMappings().add(kmetaHasEdge); // save
 
         // Edge knows - association reference
-        EdgeMapping knowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        knowsEdge.setName("KnowsAssociationEdge");
-        knowsEdge.setDomainClass("ecore.EReference");
-        knowsEdge.setUseDomainElement(true);
-        knowsEdge.setSemanticCandidatesExpression(
+        EdgeMapping kmetaKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        kmetaKnowsEdge.setName("KnowsAssociationEdge");
+        kmetaKnowsEdge.setDomainClass("ecore.EReference");
+        kmetaKnowsEdge.setUseDomainElement(true);
+        kmetaKnowsEdge.setSemanticCandidatesExpression(
                 "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not r.containment)");
-        knowsEdge.getSourceMapping().add(eClassNode);
-        knowsEdge.getTargetMapping().add(eClassNode);
-        knowsEdge.setSourceFinderExpression("aql:self.eContainingClass");
-        knowsEdge.setTargetFinderExpression("aql:self.eType");
+        kmetaKnowsEdge.getSourceMapping().add(eClassNode);
+        kmetaKnowsEdge.getTargetMapping().add(eClassNode);
+        kmetaKnowsEdge.setSourceFinderExpression("aql:self.eContainingClass");
+        kmetaKnowsEdge.setTargetFinderExpression("aql:self.eType");
 
         EdgeStyleDescription knowsEdgeStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
         knowsEdgeStyle.setLineStyle(LineStyle.DASH_LITERAL);
         knowsEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         knowsEdgeStyle.setSizeComputationExpression("1");
-        knowsEdge.setStyle(knowsEdgeStyle);
+        CenterLabelStyleDescription kmetaKnowsLabelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        kmetaKnowsLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
+        kmetaKnowsLabelStyle.setShowIcon(false);
+        knowsEdgeStyle.setCenterLabelStyleDescription(kmetaKnowsLabelStyle);
+        kmetaKnowsEdge.setStyle(knowsEdgeStyle);
 
-        kmetaDiagram.getEdgeMappings().add(knowsEdge); // save
+        kmetaDefaultLayer.getEdgeMappings().add(kmetaKnowsEdge); // save
 
-        // Custom tools for .kmeta in eclipse
-        addKMetaModelingTools(kmetaDiagram, eClassNode, attributeNode, hasEdge, knowsEdge);
+        // KMETA TOOLS
+        buildKMetaToolSections(kmetaDefaultLayer, eClassNode, attributeNode, kmetaHasEdge, kmetaKnowsEdge);
 
         ///////
         // !!! KModel object diagram
@@ -210,6 +226,11 @@ public class OdesignGenerator {
         kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
         viewpoint.getOwnedRepresentations().add(kmodelDiagram);
 
+        Layer kmodelDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
+        kmodelDefaultLayer.setName("Default");
+        kmodelDefaultLayer.setLabel("Default");
+        kmodelDiagram.setDefaultLayer(kmodelDefaultLayer);
+
         // Object container node
         ContainerMapping eObjectNode = DescriptionFactory.eINSTANCE.createContainerMapping();
         eObjectNode.setName("EObjectNode");
@@ -218,14 +239,29 @@ public class OdesignGenerator {
         eObjectNode.setChildrenPresentation(ContainerLayout.LIST);
 
         FlatContainerStyleDescription objStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
-        objStyle.setLabelExpression("aql:self.getObjectLabel()");
+        objStyle.setLabelExpression("aql:self.getObjectHeaderLabel()");
         objStyle.setLabelAlignment(LabelAlignment.LEFT);
         objStyle.setShowIcon(true);
         objStyle.setBorderSizeComputationExpression("1");
         eObjectNode.setStyle(objStyle);
-        kmodelDiagram.getContainerMappings().add(eObjectNode);
+        kmodelDefaultLayer.getContainerMappings().add(eObjectNode);
 
-        // Edge has
+        // EAttribute Slot Subnodes (mapped to ecore.EAttribute)
+        NodeMapping slotNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        slotNode.setName("EAttributeSlotNode");
+        slotNode.setDomainClass("ecore.EAttribute");
+        slotNode.setSemanticCandidatesExpression("aql:self.getPopulatedAttributes()");
+
+        NodeStyleDescription slotStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        slotStyle.setLabelExpression("aql:self.getKModelSlotLabel(view)");
+        slotStyle.setShowIcon(true);
+        slotStyle.setLabelAlignment(LabelAlignment.LEFT);
+        slotStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        slotStyle.setBorderSizeComputationExpression("0");
+        slotStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        slotNode.setStyle(slotStyle);
+        eObjectNode.getSubNodeMappings().add(slotNode);
+
         EdgeMapping instanceHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
         instanceHasEdge.setName("InstanceContainmentEdge");
         instanceHasEdge.setUseDomainElement(false);
@@ -239,9 +275,9 @@ public class OdesignGenerator {
         instanceHasStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         instanceHasStyle.setSizeComputationExpression("1");
         instanceHasEdge.setStyle(instanceHasStyle);
-        kmodelDiagram.getEdgeMappings().add(instanceHasEdge);
+        kmodelDefaultLayer.getEdgeMappings().add(instanceHasEdge);
 
-        // Edge knows
+        // Edge has
         EdgeMapping instanceKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
         instanceKnowsEdge.setName("InstanceReferenceEdge");
         instanceKnowsEdge.setUseDomainElement(false);
@@ -254,7 +290,10 @@ public class OdesignGenerator {
         instanceKnowsStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         instanceKnowsStyle.setSizeComputationExpression("1");
         instanceKnowsEdge.setStyle(instanceKnowsStyle);
-        kmodelDiagram.getEdgeMappings().add(instanceKnowsEdge);
+        kmodelDefaultLayer.getEdgeMappings().add(instanceKnowsEdge);
+
+        // KModel TOOLS
+        buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode);
 
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();
@@ -267,174 +306,240 @@ public class OdesignGenerator {
     }
 
     // https://wiki.eclipse.org/Sirius/Tutorials/AdvancedTutorial
-    private static void addKMetaModelingTools(DiagramDescription kmetaDiagram,
-            ContainerMapping eClassNode,
-            NodeMapping attributeNode,
-            EdgeMapping hasEdge,
-            EdgeMapping knowsEdge) {
+    private static void buildKMetaToolSections(Layer defaultLayer,
+            ContainerMapping eClassNode, NodeMapping attributeNode,
+            EdgeMapping hasEdge, EdgeMapping knowsEdge) {
 
         // alias for different toolfactroies
-        org.eclipse.sirius.diagram.description.tool.ToolFactory diagramToolFactory = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
-        org.eclipse.sirius.viewpoint.description.tool.ToolFactory viewpointToolFactory = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
+        org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
+        org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
         // main section for tools/pallete group
-        ToolSection toolSection = diagramToolFactory.createToolSection();
-        toolSection.setName("KMetaModelingTools");
-        toolSection.setLabel("KMeta Metamodel Entities");
-        kmetaDiagram.setToolSection(toolSection);
+        ToolSection typesSection = dtf.createToolSection();
+        typesSection.setName("TypesSection");
+        typesSection.setLabel("Types");
+        defaultLayer.getToolSections().add(typesSection);
 
         // Tool - create new type EClass
-        ContainerCreationDescription createClassTool = diagramToolFactory.createContainerCreationDescription();
-        createClassTool.setName("CreateClassTool");
+        ContainerCreationDescription createClassTool = dtf.createContainerCreationDescription();
+        createClassTool.setName("CreateTypeTool");
         createClassTool.setLabel("New Type");
         createClassTool.getContainerMappings().add(eClassNode);
 
-        InitialNodeCreationOperation classInitOp = viewpointToolFactory.createInitialNodeCreationOperation();
-        ChangeContext classChangeContext = viewpointToolFactory.createChangeContext();
-        classChangeContext.setBrowseExpression("aql:self");
+        InitialNodeCreationOperation classOp = vtf.createInitialNodeCreationOperation();
+        ChangeContext classCtx = vtf.createChangeContext();
+        classCtx.setBrowseExpression("aql:self");
 
-        CreateInstance createEClass = viewpointToolFactory.createCreateInstance();
-        createEClass.setTypeName("ecore.EClass");
-        createEClass.setReferenceName("eClassifiers");
-        createEClass.setVariableName("newClass");
+        CreateInstance createClassInst = vtf.createCreateInstance();
+        createClassInst.setTypeName("ecore.EClass");
+        createClassInst.setReferenceName("eClassifiers");
+        createClassInst.setVariableName("newClass");
 
-        SetValue setClassName = viewpointToolFactory.createSetValue();
-        setClassName.setFeatureName("name");
-        setClassName.setValueExpression("aql:'NewType'");
+        SetValue setNameVal = vtf.createSetValue();
+        setNameVal.setFeatureName("name");
+        setNameVal.setValueExpression("aql:'NewType'");
 
-        createEClass.getSubModelOperations().add(setClassName);
-        classChangeContext.getSubModelOperations().add(createEClass);
-        classInitOp.setFirstModelOperations(classChangeContext);
-        createClassTool.setInitialOperation(classInitOp);
-        toolSection.getOwnedTools().add(createClassTool);
+        SetValue setSuperType = vtf.createSetValue();
+        setSuperType.setFeatureName("eSuperTypes");
+        setSuperType.setValueExpression("aql:ecore::EObject");
 
-        // Tool - create new property EAttr for EClass
-        NodeCreationDescription createAttrTool = diagramToolFactory.createNodeCreationDescription();
-        createAttrTool.setName("CreateAttributeTool");
-        createAttrTool.setLabel("New Property (prop)");
-        createAttrTool.getNodeMappings().add(attributeNode);
+        createClassInst.getSubModelOperations().add(setNameVal);
+        createClassInst.getSubModelOperations().add(setSuperType);
+        classCtx.getSubModelOperations().add(createClassInst);
+        classOp.setFirstModelOperations(classCtx);
+        createClassTool.setInitialOperation(classOp);
+        typesSection.getOwnedTools().add(createClassTool);
 
-        InitialNodeCreationOperation attrInitOp = viewpointToolFactory.createInitialNodeCreationOperation();
-        ChangeContext attrChangeContext = viewpointToolFactory.createChangeContext();
-        attrChangeContext.setBrowseExpression("aql:container");
+        OperationAction toggleRootAction = vtf.createOperationAction();
+        toggleRootAction.setName("ToggleRootAction");
+        toggleRootAction.setLabel("Toggle Root Type");
+        InitialOperation rootOp = vtf.createInitialOperation();
+        ChangeContext rootCtx = vtf.createChangeContext();
+        rootCtx.setBrowseExpression("aql:self.toggleRootClass()");
+        rootOp.setFirstModelOperations(rootCtx);
+        toggleRootAction.setInitialOperation(rootOp);
+        typesSection.getOwnedTools().add(toggleRootAction);
 
-        CreateInstance createEAttribute = viewpointToolFactory.createCreateInstance();
-        createEAttribute.setTypeName("ecore.EAttribute");
-        createEAttribute.setReferenceName("eStructuralFeatures");
-        createEAttribute.setVariableName("newAttr");
+        DirectEditLabel editClassName = dtf.createDirectEditLabel();
+        editClassName.setName("EditTypeName");
+        InitialOperation editClassOp = vtf.createInitialOperation();
+        ChangeContext editClassCtx = vtf.createChangeContext();
+        editClassCtx.setBrowseExpression("aql:self.editClassName(arg0)");
+        editClassOp.setFirstModelOperations(editClassCtx);
+        editClassName.setInitialOperation(editClassOp);
+        eClassNode.setLabelDirectEdit(editClassName);
+        typesSection.getOwnedTools().add(editClassName);
 
-        SetValue setAttrName = viewpointToolFactory.createSetValue();
-        setAttrName.setFeatureName("name");
-        setAttrName.setValueExpression("aql:'newProp'");
+        DirectEditLabel editAttr = dtf.createDirectEditLabel();
+        editAttr.setName("EditAttributeDSL");
+        InitialOperation editAttrOp = vtf.createInitialOperation();
+        ChangeContext editAttrCtx = vtf.createChangeContext();
+        editAttrCtx.setBrowseExpression("aql:self.editKMetaAttribute(arg0)");
+        editAttrOp.setFirstModelOperations(editAttrCtx);
+        editAttr.setInitialOperation(editAttrOp);
+        attributeNode.setLabelDirectEdit(editAttr);
+        typesSection.getOwnedTools().add(editAttr);
 
-        SetValue setAttrType = viewpointToolFactory.createSetValue();
-        setAttrType.setFeatureName("eType");
-        setAttrType.setValueExpression("aql:ecore::EString");
+        DirectEditLabel editHas = dtf.createDirectEditLabel();
+        editHas.setName("EditHasEdge");
+        InitialOperation editHasOp = vtf.createInitialOperation();
+        ChangeContext editHasCtx = vtf.createChangeContext();
+        editHasCtx.setBrowseExpression("aql:self.editKMetaEdge(arg0)");
+        editHasOp.setFirstModelOperations(editHasCtx);
+        editHas.setInitialOperation(editHasOp);
+        hasEdge.setLabelDirectEdit(editHas);
+        typesSection.getOwnedTools().add(editHas);
 
-        createEAttribute.getSubModelOperations().add(setAttrName);
-        createEAttribute.getSubModelOperations().add(setAttrType);
-        attrChangeContext.getSubModelOperations().add(createEAttribute);
-        attrInitOp.setFirstModelOperations(attrChangeContext);
-        createAttrTool.setInitialOperation(attrInitOp);
-        toolSection.getOwnedTools().add(createAttrTool);
+        DirectEditLabel editKnows = dtf.createDirectEditLabel();
+        editKnows.setName("EditKnowsEdge");
+        InitialOperation editKnowsOp = vtf.createInitialOperation();
+        ChangeContext editKnowsCtx = vtf.createChangeContext();
+        editKnowsCtx.setBrowseExpression("aql:self.editKMetaEdge(arg0)");
+        editKnowsOp.setFirstModelOperations(editKnowsCtx);
+        editKnows.setInitialOperation(editKnowsOp);
+        knowsEdge.setLabelDirectEdit(editKnows);
+        typesSection.getOwnedTools().add(editKnows);
 
-        // Tool - direct edit visually name of class
-        DirectEditLabel editClassNameTool = diagramToolFactory.createDirectEditLabel();
-        editClassNameTool.setName("EditClassNameTool");
+        ToolSection propSection = dtf.createToolSection();
+        propSection.setName("PropertiesSection");
+        propSection.setLabel("Properties (prop)");
+        defaultLayer.getToolSections().add(propSection);
 
-        InitialOperation editNameOp = viewpointToolFactory.createInitialOperation();
-        SetValue applyNameVal = viewpointToolFactory.createSetValue();
-        applyNameVal.setFeatureName("name");
-        applyNameVal.setValueExpression("aql:arg0");
-        editNameOp.setFirstModelOperations(applyNameVal);
-        editClassNameTool.setInitialOperation(editNameOp);
+        propSection.getOwnedTools()
+                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString", 1));
+        propSection.getOwnedTools()
+                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble", 1));
+        propSection.getOwnedTools()
+                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean", 1));
+        propSection.getOwnedTools()
+                .add(createPropertyTool(attributeNode, "List Property", "items", "ecore::EString", -1));
 
-        eClassNode.setLabelDirectEdit(editClassNameTool);
-        toolSection.getOwnedTools().add(editClassNameTool);
+        ToolSection relSection = dtf.createToolSection();
+        relSection.setName("RelationsSection");
+        relSection.setLabel("Relationships");
+        defaultLayer.getToolSections().add(relSection);
 
-        // Tool - direct edit visually attribute of class
-        DirectEditLabel editAttrNameTool = diagramToolFactory.createDirectEditLabel();
-        editAttrNameTool.setName("EditAttributeNameTool");
+        relSection.getOwnedTools().add(createReferenceTool(hasEdge, "has (1:1 embedded)", "has_", true, 1));
+        relSection.getOwnedTools().add(createReferenceTool(hasEdge, "has (1:N embedded list)", "has_list_", true, -1));
+        relSection.getOwnedTools().add(createReferenceTool(knowsEdge, "knows (1:1 link)", "knows_", false, 1));
+        relSection.getOwnedTools()
+                .add(createReferenceTool(knowsEdge, "knows (1:N link list)", "knows_list_", false, -1));
+    }
 
-        InitialOperation editAttrOp = viewpointToolFactory.createInitialOperation();
-        SetValue applyAttrNameVal = viewpointToolFactory.createSetValue();
-        applyAttrNameVal.setFeatureName("name");
-        applyAttrNameVal.setValueExpression("aql:arg0");
-        editAttrOp.setFirstModelOperations(applyAttrNameVal);
-        editAttrNameTool.setInitialOperation(editAttrOp);
+    private static void buildKModelToolSections(Layer defaultLayer, ContainerMapping eObjectNode,
+            NodeMapping slotNode) {
+        org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
+        org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
-        attributeNode.setLabelDirectEdit(editAttrNameTool);
-        toolSection.getOwnedTools().add(editAttrNameTool);
+        ToolSection modelSection = dtf.createToolSection();
+        modelSection.setName("ModelSection");
+        modelSection.setLabel("Model Operations");
+        defaultLayer.getToolSections().add(modelSection);
 
-        // Tool - create composition edge has
-        EdgeCreationDescription createHasEdge = diagramToolFactory.createEdgeCreationDescription();
-        createHasEdge.setName("CreateHasEdge");
-        createHasEdge.setLabel("has (Composition)");
-        createHasEdge.getEdgeMappings().add(hasEdge);
+        DirectEditLabel editObjectHeader = dtf.createDirectEditLabel();
+        editObjectHeader.setName("EditObjectHeader");
+        InitialOperation editHeaderOp = vtf.createInitialOperation();
+        ChangeContext editHeaderCtx = vtf.createChangeContext();
+        editHeaderCtx.setBrowseExpression("aql:self.editKModelObjectHeader(arg0)");
+        editHeaderOp.setFirstModelOperations(editHeaderCtx);
+        editObjectHeader.setInitialOperation(editHeaderOp);
+        eObjectNode.setLabelDirectEdit(editObjectHeader);
+        modelSection.getOwnedTools().add(editObjectHeader);
 
-        InitEdgeCreationOperation hasEdgeOp = viewpointToolFactory.createInitEdgeCreationOperation();
-        ChangeContext sourceContext = viewpointToolFactory.createChangeContext();
-        sourceContext.setBrowseExpression("aql:source");
+        DirectEditLabel editSlot = dtf.createDirectEditLabel();
+        editSlot.setName("EditSlotValue");
+        InitialOperation editSlotOp = vtf.createInitialOperation();
+        ChangeContext editSlotCtx = vtf.createChangeContext();
+        editSlotCtx.setBrowseExpression("aql:self.editKModelSlotValue(view, arg0)");
+        editSlotOp.setFirstModelOperations(editSlotCtx);
+        editSlot.setInitialOperation(editSlotOp);
+        slotNode.setLabelDirectEdit(editSlot);
+        modelSection.getOwnedTools().add(editSlot);
+    }
 
-        CreateInstance createContainmentRef = viewpointToolFactory.createCreateInstance();
-        createContainmentRef.setTypeName("ecore.EReference");
-        createContainmentRef.setReferenceName("eStructuralFeatures");
-        createContainmentRef.setVariableName("newRef");
+    private static NodeCreationDescription createPropertyTool(NodeMapping attributeNode, String label,
+            String defaultName, String ecoreType, int upperBound) {
+        org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
+        org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
-        SetValue setRefName = viewpointToolFactory.createSetValue();
-        setRefName.setFeatureName("name");
-        setRefName.setValueExpression("aql:'has_' + target.name.toLowerFirst()");
+        NodeCreationDescription tool = dtf.createNodeCreationDescription();
+        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", ""));
+        tool.setLabel(label);
+        tool.getNodeMappings().add(attributeNode);
 
-        SetValue setRefType = viewpointToolFactory.createSetValue();
-        setRefType.setFeatureName("eType");
-        setRefType.setValueExpression("aql:target");
+        InitialNodeCreationOperation op = vtf.createInitialNodeCreationOperation();
+        ChangeContext ctx = vtf.createChangeContext();
+        ctx.setBrowseExpression("aql:container");
 
-        SetValue setContainment = viewpointToolFactory.createSetValue();
+        CreateInstance createAttr = vtf.createCreateInstance();
+        createAttr.setTypeName("ecore.EAttribute");
+        createAttr.setReferenceName("eStructuralFeatures");
+        createAttr.setVariableName("newAttr");
+
+        SetValue setName = vtf.createSetValue();
+        setName.setFeatureName("name");
+        setName.setValueExpression("aql:'" + defaultName + "'");
+
+        SetValue setType = vtf.createSetValue();
+        setType.setFeatureName("eType");
+        setType.setValueExpression("aql:" + ecoreType);
+
+        SetValue setBound = vtf.createSetValue();
+        setBound.setFeatureName("upperBound");
+        setBound.setValueExpression("aql:" + upperBound);
+
+        createAttr.getSubModelOperations().add(setName);
+        createAttr.getSubModelOperations().add(setType);
+        createAttr.getSubModelOperations().add(setBound);
+        ctx.getSubModelOperations().add(createAttr);
+        op.setFirstModelOperations(ctx);
+        tool.setInitialOperation(op);
+        return tool;
+    }
+
+    private static EdgeCreationDescription createReferenceTool(EdgeMapping edgeMapping, String label, String prefix,
+            boolean isContainment, int upperBound) {
+        org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
+        org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
+
+        EdgeCreationDescription tool = dtf.createEdgeCreationDescription();
+        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-", ""));
+        tool.setLabel(label);
+        tool.getEdgeMappings().add(edgeMapping);
+
+        InitEdgeCreationOperation op = vtf.createInitEdgeCreationOperation();
+        ChangeContext ctx = vtf.createChangeContext();
+        ctx.setBrowseExpression("aql:source");
+
+        CreateInstance createRef = vtf.createCreateInstance();
+        createRef.setTypeName("ecore.EReference");
+        createRef.setReferenceName("eStructuralFeatures");
+        createRef.setVariableName("newRef");
+
+        SetValue setName = vtf.createSetValue();
+        setName.setFeatureName("name");
+        setName.setValueExpression("aql:'" + prefix + "' + target.name.toLowerFirst()");
+
+        SetValue setType = vtf.createSetValue();
+        setType.setFeatureName("eType");
+        setType.setValueExpression("aql:target");
+
+        SetValue setContainment = vtf.createSetValue();
         setContainment.setFeatureName("containment");
-        setContainment.setValueExpression("aql:true");
+        setContainment.setValueExpression("aql:" + isContainment);
 
-        createContainmentRef.getSubModelOperations().add(setRefName);
-        createContainmentRef.getSubModelOperations().add(setRefType);
-        createContainmentRef.getSubModelOperations().add(setContainment);
-        sourceContext.getSubModelOperations().add(createContainmentRef);
-        hasEdgeOp.setFirstModelOperations(sourceContext);
-        createHasEdge.setInitialOperation(hasEdgeOp);
-        toolSection.getOwnedTools().add(createHasEdge);
+        SetValue setBound = vtf.createSetValue();
+        setBound.setFeatureName("upperBound");
+        setBound.setValueExpression("aql:" + upperBound);
 
-        // Tool - create association edge knows
-        EdgeCreationDescription createKnowsEdge = diagramToolFactory.createEdgeCreationDescription();
-        createKnowsEdge.setName("CreateKnowsEdge");
-        createKnowsEdge.setLabel("knows (Association)");
-        createKnowsEdge.getEdgeMappings().add(knowsEdge);
-
-        InitEdgeCreationOperation knowsEdgeOp = viewpointToolFactory.createInitEdgeCreationOperation();
-        ChangeContext knowsSourceCtx = viewpointToolFactory.createChangeContext();
-        knowsSourceCtx.setBrowseExpression("aql:source");
-
-        CreateInstance createNonContainmentRef = viewpointToolFactory.createCreateInstance();
-        createNonContainmentRef.setTypeName("ecore.EReference");
-        createNonContainmentRef.setReferenceName("eStructuralFeatures");
-        createNonContainmentRef.setVariableName("newKnowsRef");
-
-        SetValue setKnowsName = viewpointToolFactory.createSetValue();
-        setKnowsName.setFeatureName("name");
-        setKnowsName.setValueExpression("aql:'knows_' + target.name.toLowerFirst()");
-
-        SetValue setKnowsType = viewpointToolFactory.createSetValue();
-        setKnowsType.setFeatureName("eType");
-        setKnowsType.setValueExpression("aql:target");
-
-        SetValue setNonContainment = viewpointToolFactory.createSetValue();
-        setNonContainment.setFeatureName("containment");
-        setNonContainment.setValueExpression("aql:false");
-
-        createNonContainmentRef.getSubModelOperations().add(setKnowsName);
-        createNonContainmentRef.getSubModelOperations().add(setKnowsType);
-        createNonContainmentRef.getSubModelOperations().add(setNonContainment);
-        knowsSourceCtx.getSubModelOperations().add(createNonContainmentRef);
-        knowsEdgeOp.setFirstModelOperations(knowsSourceCtx);
-        createKnowsEdge.setInitialOperation(knowsEdgeOp);
-        toolSection.getOwnedTools().add(createKnowsEdge);
+        createRef.getSubModelOperations().add(setName);
+        createRef.getSubModelOperations().add(setType);
+        createRef.getSubModelOperations().add(setContainment);
+        createRef.getSubModelOperations().add(setBound);
+        ctx.getSubModelOperations().add(createRef);
+        op.setFirstModelOperations(ctx);
+        tool.setInitialOperation(op);
+        return tool;
     }
 
     public static void main(String[] args) {
