@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 
+import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EPackage;
@@ -28,11 +29,22 @@ public class DirectEditMicroParsingTest {
 
     @Test
     void testKMetaClassMicroParsing() {
+        EPackage pkg = factory.createEPackage();
         EClass clas = factory.createEClass();
-        clas.setName("OldClass");
+        clas.setName("Room");
+        pkg.getEClassifiers().add(clas);
 
-        services.editClassName(clas, "type \"Robot\" \"\" {}");
-        assertEquals("Robot", clas.getName());
+        EAnnotation ann = factory.createEAnnotation();
+        ann.setSource(KarpfenDiagramServices.KARPFEN_URI);
+        ann.getDetails().put("rootClass", "Room");
+        pkg.getEAnnotations().add(ann);
+
+        assertEquals("<root> Room", services.getKMetaClassLabel(clas));
+
+        services.editClassName(clas, "<root> LivingRoom");
+        assertEquals("LivingRoom", clas.getName());
+        assertEquals("LivingRoom", ann.getDetails().get("rootClass"));
+        assertEquals("<root> LivingRoom", services.getKMetaClassLabel(clas));
 
         services.editClassName(clas, "Obstacle");
         assertEquals("Obstacle", clas.getName());
@@ -48,19 +60,30 @@ public class DirectEditMicroParsingTest {
         attr.setEType(EcorePackage.Literals.ESTRING);
         attr.setUpperBound(1);
 
-        services.editKMetaAttribute(attr, "prop(\"speed\", \"number\")");
+        services.editKMetaAttribute(attr, "speed : number");
         assertEquals("speed", attr.getName());
         assertEquals(EcorePackage.Literals.EDOUBLE, attr.getEAttributeType());
         assertEquals(1, attr.getUpperBound());
+        assertEquals("speed : number", services.getKMetaAttributeLabel(attr));
 
-        services.editKMetaAttribute(attr, "prop(\"logs\", list(\"string\"))");
-        assertEquals("logs", attr.getName());
+        services.editKMetaAttribute(attr, "speed [list]");
+        assertEquals("speed", attr.getName());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, attr.getUpperBound());
+        assertEquals("speed : list(\"number\")", services.getKMetaAttributeLabel(attr));
+
+        services.editKMetaAttribute(attr, "speed");
+        assertEquals("speed", attr.getName());
+        assertEquals(1, attr.getUpperBound());
+        assertEquals("speed : number", services.getKMetaAttributeLabel(attr));
+
+        services.editKMetaAttribute(attr, "tags : list(\"string\")");
+        assertEquals("tags", attr.getName());
         assertEquals(EcorePackage.Literals.ESTRING, attr.getEAttributeType());
         assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, attr.getUpperBound());
+        assertEquals("tags : list(\"string\")", services.getKMetaAttributeLabel(attr));
 
         services.editKMetaAttribute(attr, "invalid_unquoted_syntax without brackets");
-        assertEquals("logs", attr.getName());
-        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, attr.getUpperBound());
+        assertEquals("tags", attr.getName());
     }
 
     @Test
@@ -79,25 +102,45 @@ public class DirectEditMicroParsingTest {
         EReference hasRef = factory.createEReference();
         hasRef.setName("pos");
         hasRef.setContainment(true);
+        hasRef.setEType(pointClass);
+        hasRef.setUpperBound(1);
         robotClass.getEStructuralFeatures().add(hasRef);
 
-        services.editKMetaEdge(hasRef, "has(\"position\", \"Point\")");
+        assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+
+        // Convert scalar -> list
+        services.editKMetaEdge(hasRef, "pos [list]");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
+        assertEquals("pos [list]", services.getKMetaEdgeLabel(hasRef));
+
+        // Convert list -> scalar
+        services.editKMetaEdge(hasRef, "pos");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(1, hasRef.getUpperBound());
+        assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "position : Point");
         assertEquals("position", hasRef.getName());
         assertEquals(pointClass, hasRef.getEType());
         assertEquals(1, hasRef.getUpperBound());
 
         EReference knowsRef = factory.createEReference();
-        knowsRef.setName("w");
+        knowsRef.setName("walls");
         knowsRef.setContainment(false);
+        knowsRef.setUpperBound(ETypedElement.UNBOUNDED_MULTIPLICITY);
+        knowsRef.setEType(wallClass);
         robotClass.getEStructuralFeatures().add(knowsRef);
 
-        services.editKMetaEdge(knowsRef, "knows(\"walls\", list(\"Wall\"))");
-        assertEquals("walls", knowsRef.getName());
-        assertEquals(wallClass, knowsRef.getEType());
-        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, knowsRef.getUpperBound());
+        assertEquals("walls [list]", services.getKMetaEdgeLabel(knowsRef));
+
+        services.editKMetaEdge(knowsRef, "wall");
+        assertEquals("wall", knowsRef.getName());
+        assertEquals(1, knowsRef.getUpperBound());
+        assertEquals("wall", services.getKMetaEdgeLabel(knowsRef));
 
         services.editKMetaEdge(knowsRef, "knows(unclosed syntax");
-        assertEquals("walls", knowsRef.getName());
+        assertEquals("wall", knowsRef.getName());
     }
 
     @Test
@@ -116,14 +159,20 @@ public class DirectEditMicroParsingTest {
         EObject robotObj = pkg.getEFactoryInstance().create(robotClass);
         robotObj.eSet(idAttr, "turtle");
 
-        services.editKModelObjectHeader(robotObj, "\"turtle_v2\":\"Robot\"");
+        assertEquals("turtle : Robot", services.getObjectHeaderLabel(robotObj));
+
+        services.editKModelObjectHeader(robotObj, "turtle_v2 : Robot");
         assertEquals("turtle_v2", robotObj.eGet(idAttr));
+        assertEquals("turtle_v2 : Robot", services.getObjectHeaderLabel(robotObj));
 
         services.editKModelObjectHeader(robotObj, "turtle_final");
         assertEquals("turtle_final", robotObj.eGet(idAttr));
 
+        services.editKModelObjectHeader(robotObj, "make object \"turtle_dsl\":\"Robot\"");
+        assertEquals("turtle_dsl", robotObj.eGet(idAttr));
+
         services.editKModelObjectHeader(robotObj, "make object unclosed");
-        assertEquals("turtle_final", robotObj.eGet(idAttr));
+        assertEquals("turtle_dsl", robotObj.eGet(idAttr));
     }
 
     @Test
@@ -145,16 +194,21 @@ public class DirectEditMicroParsingTest {
         List<EAttribute> attrs = services.getPopulatedAttributes(robotObj);
         assertEquals(1, attrs.size());
         EAttribute attr = attrs.get(0);
-        assertEquals("prop(\"speed\") -> \"1.0\"", services.getKModelSlotLabel(attr, robotObj));
+        assertEquals("speed = 1.0", services.getKModelSlotLabel(attr, robotObj));
 
-        services.editKModelSlot(robotObj, attr, "prop(\"speed\") -> \"2.5\"");
+        services.editKModelSlot(robotObj, attr, "speed = 2.5");
         assertEquals(2.5, (Double) robotObj.eGet(speedAttr));
-        assertEquals("prop(\"speed\") -> \"2.5\"", services.getKModelSlotLabel(attr, robotObj));
+        assertEquals("speed = 2.5", services.getKModelSlotLabel(attr, robotObj));
 
         services.editKModelSlot(robotObj, attr, "3.0");
         assertEquals(3.0, (Double) robotObj.eGet(speedAttr));
+        assertEquals("speed = 3.0", services.getKModelSlotLabel(attr, robotObj));
+
+        services.editKModelSlot(robotObj, attr, "prop(\"speed\") -> \"4.5\"");
+        assertEquals(4.5, (Double) robotObj.eGet(speedAttr));
+        assertEquals("speed = 4.5", services.getKModelSlotLabel(attr, robotObj));
 
         services.editKModelSlot(robotObj, attr, "prop(speed -> broken");
-        assertEquals(3.0, (Double) robotObj.eGet(speedAttr));
+        assertEquals(4.5, (Double) robotObj.eGet(speedAttr));
     }
 }

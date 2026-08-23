@@ -262,6 +262,7 @@ public class OdesignGenerator {
         slotNode.setStyle(slotStyle);
         eObjectNode.getSubNodeMappings().add(slotNode);
 
+        // Edge has
         EdgeMapping instanceHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
         instanceHasEdge.setName("InstanceContainmentEdge");
         instanceHasEdge.setUseDomainElement(false);
@@ -277,7 +278,7 @@ public class OdesignGenerator {
         instanceHasEdge.setStyle(instanceHasStyle);
         kmodelDefaultLayer.getEdgeMappings().add(instanceHasEdge);
 
-        // Edge has
+        // Edge knows
         EdgeMapping instanceKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
         instanceKnowsEdge.setName("InstanceReferenceEdge");
         instanceKnowsEdge.setUseDomainElement(false);
