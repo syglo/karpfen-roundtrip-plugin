@@ -7,6 +7,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 
 // Manual serializer converts EMF Eobject graph into .kmodel text
@@ -27,11 +28,11 @@ public class EcoreToKModelManualSerializer implements KModelSerializer {
 
     private void serializeObject(EObject obj, StringBuilder sb) {
         String id = getId(obj);
-        String className = (obj.eClass() != null) ? obj.eClass().getName() : "";
+        String className = getClassName(obj);
 
         sb.append(String.format("make object \"%s\":\"%s\" {\n", id, className));
 
-        EClass eClass = obj.eClass();
+        EClass eClass = resolveEClass(obj);
         if (eClass != null) {
 
             // Properties
@@ -39,66 +40,84 @@ public class EcoreToKModelManualSerializer implements KModelSerializer {
                 if (KMetaToEcoreTransformer.ID_FEATURE_NAME.equals(attr.getName())) {
                     continue;
                 }
-                if (!obj.eIsSet(attr)) {
-                    continue;
-                }
-
-                Object val = obj.eGet(attr);
-                if (val != null) {
-                    if (attr.isMany() && val instanceof List<?> list) {
-                        for (Object item : list) {
-                            if (item != null) {
-                                sb.append(String.format("prop(\"%s\") -> \"%s\"\n", attr.getName(), item));
-                            }
-                        }
-                    } else {
-                        sb.append(String.format("prop(\"%s\") -> \"%s\"\n", attr.getName(), val));
+                try {
+                    EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(attr.getName());
+                    if (targetFeat == null || !obj.eIsSet(targetFeat)) {
+                        continue;
                     }
+
+                    Object val = obj.eGet(targetFeat);
+                    if (val != null) {
+                        if (attr.isMany() && val instanceof List<?> list) {
+                            for (Object item : list) {
+                                if (item != null) {
+                                    sb.append(String.format("prop(\"%s\") -> \"%s\"\n", attr.getName(), item));
+                                }
+                            }
+                        } else {
+                            sb.append(String.format("prop(\"%s\") -> \"%s\"\n", attr.getName(), val));
+                        }
+                    }
+                } catch (Throwable ignored) {
                 }
             }
 
             // Has
             for (EReference ref : eClass.getEAllReferences()) {
-                if (!ref.isContainment() || !obj.eIsSet(ref)) {
+                if (!ref.isContainment()) {
                     continue;
                 }
-
-                Object childVal = obj.eGet(ref);
-                if (childVal != null) {
-                    if (ref.isMany() && childVal instanceof List<?> list) {
-                        for (Object item : list) {
-                            if (item instanceof EObject childObj) {
-                                sb.append(String.format("has(\"%s\") -> ", ref.getName()));
-                                serializeObject(childObj, sb);
-                                sb.append("\n");
-                            }
-                        }
-                    } else if (childVal instanceof EObject childObj) {
-                        sb.append(String.format("has(\"%s\") -> ", ref.getName()));
-                        serializeObject(childObj, sb);
-                        sb.append("\n");
+                try {
+                    EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                    if (targetFeat == null || !obj.eIsSet(targetFeat)) {
+                        continue;
                     }
+
+                    Object childVal = obj.eGet(targetFeat);
+                    if (childVal != null) {
+                        if (ref.isMany() && childVal instanceof List<?> list) {
+                            for (Object item : list) {
+                                if (item instanceof EObject childObj) {
+                                    sb.append(String.format("has(\"%s\") -> ", ref.getName()));
+                                    serializeObject(childObj, sb);
+                                    sb.append("\n");
+                                }
+                            }
+                        } else if (childVal instanceof EObject childObj) {
+                            sb.append(String.format("has(\"%s\") -> ", ref.getName()));
+                            serializeObject(childObj, sb);
+                            sb.append("\n");
+                        }
+                    }
+                } catch (Throwable ignored) {
                 }
             }
 
             // Knows
             for (EReference ref : eClass.getEAllReferences()) {
-                if (ref.isContainment() || !obj.eIsSet(ref)) {
+                if (ref.isContainment()) {
                     continue;
                 }
-
-                Object targetVal = obj.eGet(ref);
-                if (targetVal != null) {
-                    if (ref.isMany() && targetVal instanceof List<?> list) {
-                        for (Object item : list) {
-                            if (item instanceof EObject targetObj) {
-                                sb.append(String.format("knows(\"%s\") -> \"%s\"\n", ref.getName(),
-                                        getId(targetObj)));
-                            }
-                        }
-                    } else if (targetVal instanceof EObject targetObj) {
-                        sb.append(String.format("knows(\"%s\") -> \"%s\"\n", ref.getName(), getId(targetObj)));
+                try {
+                    EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                    if (targetFeat == null || !obj.eIsSet(targetFeat)) {
+                        continue;
                     }
+
+                    Object targetVal = obj.eGet(targetFeat);
+                    if (targetVal != null) {
+                        if (ref.isMany() && targetVal instanceof List<?> list) {
+                            for (Object item : list) {
+                                if (item instanceof EObject targetObj) {
+                                    sb.append(String.format("knows(\"%s\") -> \"%s\"\n", ref.getName(),
+                                            getId(targetObj)));
+                                }
+                            }
+                        } else if (targetVal instanceof EObject targetObj) {
+                            sb.append(String.format("knows(\"%s\") -> \"%s\"\n", ref.getName(), getId(targetObj)));
+                        }
+                    }
+                } catch (Throwable ignored) {
                 }
             }
         }
@@ -106,15 +125,40 @@ public class EcoreToKModelManualSerializer implements KModelSerializer {
         sb.append("}");
     }
 
-    private String getId(EObject obj) {
-        if (obj == null || obj.eClass() == null) {
-            return "_";
+    private EClass resolveEClass(EObject obj) {
+        if (obj == null)
+            return null;
+        EClass eClass = obj.eClass();
+        if (eClass != null && eClass.eIsProxy()) {
+            EObject resolved = EcoreUtil.resolve(eClass, obj);
+            if (resolved instanceof EClass resolvedClass && !resolvedClass.eIsProxy()) {
+                return resolvedClass;
+            }
         }
-        EStructuralFeature idFeature = obj.eClass().getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
+        return eClass;
+    }
+
+    private String getClassName(EObject obj) {
+        EClass eClass = resolveEClass(obj);
+        return (eClass != null && eClass.getName() != null) ? eClass.getName() : "Object";
+    }
+
+    private String getId(EObject obj) {
+        if (obj == null)
+            return "_";
+        EClass eClass = resolveEClass(obj);
+        if (eClass == null)
+            return "_";
+        EStructuralFeature idFeature = eClass.getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
         if (idFeature != null) {
-            Object val = obj.eGet(idFeature);
-            if (val != null && !val.toString().isBlank()) {
-                return val.toString().trim();
+            try {
+                if (obj.eIsSet(idFeature)) {
+                    Object val = obj.eGet(idFeature);
+                    if (val != null && !val.toString().isBlank()) {
+                        return val.toString().trim();
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         }
         return "_";

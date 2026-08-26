@@ -9,4 +9,6 @@ build
 # Ignore Kotlin plugin data
 .kotlin
 
+.settings
+
 libs/karpfen-dsl-tools.jar

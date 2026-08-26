@@ -106,6 +106,9 @@ public class AcceleoServices {
         if (d == null)
             return "string";
         String name = d.getName();
+        if (name == null) {
+            name = d.getInstanceClassName();
+        }
         if (name == null)
             return "string";
         String lower = name.toLowerCase();
@@ -129,10 +132,15 @@ public class AcceleoServices {
             return "_";
 
         EStructuralFeature idFeature = eClass.getEStructuralFeature(KMetaToEcoreTransformer.ID_FEATURE_NAME);
-        if (idFeature != null && obj.eIsSet(idFeature)) {
-            Object val = obj.eGet(idFeature);
-            if (val != null && !val.toString().isBlank()) {
-                return val.toString().trim();
+        if (idFeature != null) {
+            try {
+                if (obj.eIsSet(idFeature)) {
+                    Object val = obj.eGet(idFeature);
+                    if (val != null && !val.toString().isBlank()) {
+                        return val.toString().trim();
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         }
         return "_";
@@ -154,8 +162,21 @@ public class AcceleoServices {
 
         List<EAttribute> result = new ArrayList<>();
         for (EAttribute attr : eClass.getEAllAttributes()) {
-            if (!KMetaToEcoreTransformer.ID_FEATURE_NAME.equals(attr.getName()) && obj.eIsSet(attr)) {
-                result.add(attr);
+            if (!KMetaToEcoreTransformer.ID_FEATURE_NAME.equals(attr.getName())) {
+                try {
+                    EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(attr.getName());
+                    if (targetFeat != null && obj.eIsSet(targetFeat)) {
+                        result.add(attr);
+                    }
+                } catch (Throwable ignored) {
+                    try {
+                        EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(attr.getName());
+                        if (targetFeat != null && obj.eGet(targetFeat) != null) {
+                            result.add(attr);
+                        }
+                    } catch (Throwable ignored2) {
+                    }
+                }
             }
         }
         return result;
@@ -170,8 +191,21 @@ public class AcceleoServices {
 
         List<EReference> result = new ArrayList<>();
         for (EReference ref : eClass.getEAllReferences()) {
-            if (ref.isContainment() && obj.eIsSet(ref)) {
-                result.add(ref);
+            if (ref.isContainment()) {
+                try {
+                    EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                    if (targetFeat != null && obj.eIsSet(targetFeat)) {
+                        result.add(ref);
+                    }
+                } catch (Throwable ignored) {
+                    try {
+                        EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                        if (targetFeat != null && obj.eGet(targetFeat) != null) {
+                            result.add(ref);
+                        }
+                    } catch (Throwable ignored2) {
+                    }
+                }
             }
         }
         return result;
@@ -186,17 +220,44 @@ public class AcceleoServices {
 
         List<EReference> result = new ArrayList<>();
         for (EReference ref : eClass.getEAllReferences()) {
-            if (!ref.isContainment() && obj.eIsSet(ref)) {
-                result.add(ref);
+            if (!ref.isContainment()) {
+                try {
+                    EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                    if (targetFeat != null && obj.eIsSet(targetFeat)) {
+                        result.add(ref);
+                    }
+                } catch (Throwable ignored) {
+                    try {
+                        EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                        if (targetFeat != null && obj.eGet(targetFeat) != null) {
+                            result.add(ref);
+                        }
+                    } catch (Throwable ignored2) {
+                    }
+                }
             }
         }
         return result;
     }
 
     public List<String> getAttributeValues(EObject obj, EAttribute attr) {
-        if (obj == null || attr == null || !obj.eIsSet(attr))
+        if (obj == null || attr == null)
             return Collections.emptyList();
-        Object rawVal = obj.eGet(attr);
+        Object rawVal = null;
+        try {
+            EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(attr.getName());
+            if (targetFeat != null && obj.eIsSet(targetFeat)) {
+                rawVal = obj.eGet(targetFeat);
+            }
+        } catch (Throwable ignored) {
+            try {
+                EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(attr.getName());
+                if (targetFeat != null) {
+                    rawVal = obj.eGet(targetFeat);
+                }
+            } catch (Throwable ignored2) {
+            }
+        }
         if (rawVal == null)
             return Collections.emptyList();
 
@@ -214,9 +275,23 @@ public class AcceleoServices {
 
     @SuppressWarnings("unchecked")
     public List<EObject> getContainedChildren(EObject obj, EReference ref) {
-        if (obj == null || ref == null || !ref.isContainment() || !obj.eIsSet(ref))
+        if (obj == null || ref == null || !ref.isContainment())
             return Collections.emptyList();
-        Object rawVal = obj.eGet(ref);
+        Object rawVal = null;
+        try {
+            EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+            if (targetFeat != null && obj.eIsSet(targetFeat)) {
+                rawVal = obj.eGet(targetFeat);
+            }
+        } catch (Throwable ignored) {
+            try {
+                EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                if (targetFeat != null) {
+                    rawVal = obj.eGet(targetFeat);
+                }
+            } catch (Throwable ignored2) {
+            }
+        }
         if (rawVal == null)
             return Collections.emptyList();
 
@@ -230,9 +305,23 @@ public class AcceleoServices {
 
     @SuppressWarnings("unchecked")
     public List<EObject> getReferenceTargets(EObject obj, EReference ref) {
-        if (obj == null || ref == null || ref.isContainment() || !obj.eIsSet(ref))
+        if (obj == null || ref == null || ref.isContainment())
             return Collections.emptyList();
-        Object rawVal = obj.eGet(ref);
+        Object rawVal = null;
+        try {
+            EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+            if (targetFeat != null && obj.eIsSet(targetFeat)) {
+                rawVal = obj.eGet(targetFeat);
+            }
+        } catch (Throwable ignored) {
+            try {
+                EStructuralFeature targetFeat = obj.eClass().getEStructuralFeature(ref.getName());
+                if (targetFeat != null) {
+                    rawVal = obj.eGet(targetFeat);
+                }
+            } catch (Throwable ignored2) {
+            }
+        }
         if (rawVal == null)
             return Collections.emptyList();
 
@@ -245,6 +334,8 @@ public class AcceleoServices {
     }
 
     private EClass resolveEClass(EObject obj) {
+        if (obj == null)
+            return null;
         EClass eClass = obj.eClass();
         if (eClass != null && eClass.eIsProxy()) {
             EObject resolved = EcoreUtil.resolve(eClass, obj);

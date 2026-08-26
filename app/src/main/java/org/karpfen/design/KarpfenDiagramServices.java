@@ -14,7 +14,6 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
-import org.eclipse.emf.common.util.TreeIterator;
 import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
@@ -72,6 +71,8 @@ public class KarpfenDiagramServices {
     // ! KMeta ANTLR micro parser, input subsitution
 
     public EClass editClassName(EClass clas, String input) {
+        KarpfenLog.trace("DirectEdit-KMeta", "editClassName called for class="
+                + (clas != null ? clas.getName() : "null") + " with input=[" + input + "]");
         if (clas == null || input == null || input.isBlank())
             return clas;
         String raw = input.trim();
@@ -81,15 +82,9 @@ public class KarpfenDiagramServices {
             raw = raw.substring("<root>".length()).trim();
         }
 
-        String snippet;
-        if (raw.startsWith("type")) {
-            snippet = raw;
-        } else if (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
-                && !raw.contains(")")) {
-            snippet = "type \"" + raw.replace("\"", "") + "\" \"\" {}";
-        } else {
-            snippet = raw;
-        }
+        String snippet = raw.startsWith("type") ? raw
+                : (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
+                        && !raw.contains(")")) ? "type \"" + raw.replace("\"", "") + "\" \"\" {}" : raw;
 
         try {
             KmetaParser parser = createKmetaParser(snippet);
@@ -105,14 +100,18 @@ public class KarpfenDiagramServices {
                         ann.getDetails().put("rootClass", newName);
                     }
                 }
+                markTargetResourceDirty(clas);
+                KarpfenLog.trace("DirectEdit-KMeta", "Renamed type to: " + newName);
             }
         } catch (ParseCancellationException e) {
-            System.err.println("[Karpfen] Direct-Edit Invalid type rejected: " + input);
+            KarpfenLog.warn("Direct-Edit Invalid type rejected: " + input);
         }
         return clas;
     }
 
     public EAttribute editKMetaAttribute(EAttribute attr, String input) {
+        KarpfenLog.trace("DirectEdit-KMeta", "editKMetaAttribute called for attr="
+                + (attr != null ? attr.getName() : "null") + " with input=[" + input + "]");
         if (attr == null || input == null || input.isBlank())
             return attr;
         String raw = input.trim();
@@ -130,30 +129,21 @@ public class KarpfenDiagramServices {
                 snippet = raw;
             } else if (typePart.startsWith("list(") && typePart.endsWith(")")) {
                 String inner = typePart.substring(5, typePart.length() - 1).trim().replace("\"", "");
-                if (inner.contains(" ") || inner.isEmpty()) {
-                    snippet = raw;
-                } else {
-                    snippet = String.format("prop(\"%s\", list(\"%s\"))", name, inner);
-                }
+                snippet = inner.contains(" ") || inner.isEmpty() ? raw
+                        : String.format("prop(\"%s\", list(\"%s\"))", name, inner);
             } else if (typePart.equalsIgnoreCase("list") || typePart.endsWith("[]") || typePart.endsWith("[list]")) {
                 String inner = typePart.replace("[list]", "").replace("[]", "").replace("list", "").trim().replace("\"",
                         "");
                 snippet = String.format("prop(\"%s\", list(\"%s\"))", name, inner.isEmpty() ? currentType : inner);
             } else {
                 String cleanedType = typePart.replace("\"", "").trim();
-                if (cleanedType.contains(" ") || cleanedType.isEmpty()) {
-                    snippet = raw;
-                } else {
-                    snippet = String.format("prop(\"%s\", \"%s\")", name, cleanedType);
-                }
+                snippet = cleanedType.contains(" ") || cleanedType.isEmpty() ? raw
+                        : String.format("prop(\"%s\", \"%s\")", name, cleanedType);
             }
         } else if (raw.endsWith("[list]") || raw.endsWith("[]")) {
             String name = raw.replace("[list]", "").replace("[]", "").trim().replace("\"", "");
-            if (name.contains(" ") || name.isEmpty()) {
-                snippet = raw;
-            } else {
-                snippet = String.format("prop(\"%s\", list(\"%s\"))", name, currentType);
-            }
+            snippet = name.contains(" ") || name.isEmpty() ? raw
+                    : String.format("prop(\"%s\", list(\"%s\"))", name, currentType);
         } else if (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
                 && !raw.contains(")")) {
             snippet = String.format("prop(\"%s\", \"%s\")", raw.replace("\"", ""), currentType);
@@ -162,7 +152,6 @@ public class KarpfenDiagramServices {
         }
 
         try {
-            boolean wasMany = attr.isMany();
             KmetaParser parser = createKmetaParser(snippet);
             KmetaParser.Prop_ruleContext ctx = parser.prop_rule();
 
@@ -173,14 +162,18 @@ public class KarpfenDiagramServices {
             attr.setName(name);
             attr.setUpperBound(isList ? ETypedElement.UNBOUNDED_MULTIPLICITY : 1);
             attr.setEType(mapKarpfenToEcoreType(typeStr));
-            synchronizeFeatureMultiplicity(attr, wasMany, isList);
+            markTargetResourceDirty(attr);
+            KarpfenLog.trace("DirectEdit-KMeta",
+                    "Updated attr: name=" + name + ", type=" + typeStr + ", isList=" + isList);
         } catch (ParseCancellationException e) {
-            System.err.println("[Karpfen] Direct-Edit Input rejected by KMeta prop_rule: " + input);
+            KarpfenLog.warn("Direct-Edit Input rejected by KMeta prop_rule: " + input);
         }
         return attr;
     }
 
     public EReference editKMetaEdge(EReference ref, String input) {
+        KarpfenLog.trace("DirectEdit-KMeta", "editKMetaEdge called for ref=" + (ref != null ? ref.getName() : "null")
+                + " with input=[" + input + "]");
         if (ref == null || input == null || input.isBlank())
             return ref;
         String raw = input.trim();
@@ -199,30 +192,21 @@ public class KarpfenDiagramServices {
                 snippet = raw;
             } else if (typePart.startsWith("list(") && typePart.endsWith(")")) {
                 String inner = typePart.substring(5, typePart.length() - 1).trim().replace("\"", "");
-                if (inner.contains(" ") || inner.isEmpty()) {
-                    snippet = raw;
-                } else {
-                    snippet = String.format("%s(\"%s\", list(\"%s\"))", kw, name, inner);
-                }
+                snippet = inner.contains(" ") || inner.isEmpty() ? raw
+                        : String.format("%s(\"%s\", list(\"%s\"))", kw, name, inner);
             } else if (typePart.endsWith("[list]") || typePart.endsWith("[*]") || typePart.endsWith("[0..*]")
                     || typePart.endsWith("[]")) {
                 String inner = typePart.substring(0, typePart.indexOf('[')).trim().replace("\"", "");
                 snippet = String.format("%s(\"%s\", list(\"%s\"))", kw, name, inner.isEmpty() ? existingTarget : inner);
             } else {
                 String cleanedType = typePart.replace("\"", "").trim();
-                if (cleanedType.contains(" ") || cleanedType.isEmpty()) {
-                    snippet = raw;
-                } else {
-                    snippet = String.format("%s(\"%s\", \"%s\")", kw, name, cleanedType);
-                }
+                snippet = cleanedType.contains(" ") || cleanedType.isEmpty() ? raw
+                        : String.format("%s(\"%s\", \"%s\")", kw, name, cleanedType);
             }
         } else if (raw.endsWith("[list]") || raw.endsWith("[*]") || raw.endsWith("[0..*]") || raw.endsWith("[]")) {
             String name = raw.substring(0, raw.indexOf('[')).trim().replace("\"", "");
-            if (name.contains(" ") || name.isEmpty()) {
-                snippet = raw;
-            } else {
-                snippet = String.format("%s(\"%s\", list(\"%s\"))", kw, name, existingTarget);
-            }
+            snippet = name.contains(" ") || name.isEmpty() ? raw
+                    : String.format("%s(\"%s\", list(\"%s\"))", kw, name, existingTarget);
         } else if (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
                 && !raw.contains(")")) {
             snippet = String.format("%s(\"%s\", \"%s\")", kw, raw.replace("\"", ""), existingTarget);
@@ -231,7 +215,6 @@ public class KarpfenDiagramServices {
         }
 
         try {
-            boolean wasMany = ref.isMany();
             String targetTypeStr;
             boolean isList;
             String refName;
@@ -253,9 +236,11 @@ public class KarpfenDiagramServices {
             ref.setName(refName);
             ref.setUpperBound(isList ? ETypedElement.UNBOUNDED_MULTIPLICITY : 1);
             updateReferenceTargetType(ref, targetTypeStr);
-            synchronizeFeatureMultiplicity(ref, wasMany, isList);
+            markTargetResourceDirty(ref);
+            KarpfenLog.trace("DirectEdit-KMeta",
+                    "Updated ref: name=" + refName + ", targetType=" + targetTypeStr + ", isList=" + isList);
         } catch (ParseCancellationException e) {
-            System.err.println("[Karpfen] Direct-Edit Input rejected by KMeta relation rule: " + input);
+            KarpfenLog.warn("Direct-Edit Input rejected by KMeta relation rule: " + input);
         }
         return ref;
     }
@@ -276,6 +261,7 @@ public class KarpfenDiagramServices {
         } else {
             ann.getDetails().put("rootClass", clas.getName());
         }
+        markTargetResourceDirty(clas);
         return clas;
     }
 
@@ -284,27 +270,45 @@ public class KarpfenDiagramServices {
     public String getObjectHeaderLabel(EObject self) {
         if (self == null)
             return "";
-        EClass eClass = resolveEClass(self);
+        EObject target = resolveSemanticTarget(self);
+        EClass eClass = resolveEClass(target);
         String className = (eClass != null && eClass.getName() != null) ? eClass.getName() : "Object";
 
         EStructuralFeature idFeature = (eClass != null) ? eClass.getEStructuralFeature(ID_FEATURE_NAME) : null;
-        Object idVal = (idFeature != null && self.eIsSet(idFeature)) ? self.eGet(idFeature) : null;
+        Object idVal = null;
+        if (idFeature != null) {
+            try {
+                if (target.eIsSet(idFeature)) {
+                    idVal = target.eGet(idFeature);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         String idStr = (idVal != null && !idVal.toString().isBlank()) ? idVal.toString().trim() : "_";
-
         return idStr + " : " + className;
     }
 
     public List<EAttribute> getPopulatedAttributes(EObject self) {
         if (self == null)
             return Collections.emptyList();
-        EClass eClass = resolveEClass(self);
-        if (eClass == null)
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return Collections.emptyList();
+        EClass eClass = resolveEClass(target);
+        if (eClass == null || eClass.eIsProxy())
             return Collections.emptyList();
 
         List<EAttribute> result = new ArrayList<>();
         for (EAttribute attr : eClass.getEAllAttributes()) {
-            if (!ID_FEATURE_NAME.equals(attr.getName()) && self.eIsSet(attr)) {
-                result.add(attr);
+            if (ID_FEATURE_NAME.equals(attr.getName())) {
+                continue;
+            }
+            try {
+                EStructuralFeature feature = target.eClass().getEStructuralFeature(attr.getName());
+                if (feature != null && target.eIsSet(feature)) {
+                    result.add(attr);
+                }
+            } catch (Throwable ignored) {
             }
         }
         return result;
@@ -317,8 +321,15 @@ public class KarpfenDiagramServices {
         if (target == null)
             return attr.getName() + " = ";
 
+        String featName = attr.getName();
+        if (featName == null)
+            return "";
+
         EClass targetClass = resolveEClass(target);
-        EStructuralFeature feature = (targetClass != null) ? targetClass.getEStructuralFeature(attr.getName()) : attr;
+        EStructuralFeature feature = (targetClass != null) ? targetClass.getEStructuralFeature(featName) : null;
+        if (feature == null && target.eClass() != null) {
+            feature = target.eClass().getEStructuralFeature(featName);
+        }
         if (feature == null) {
             feature = attr;
         }
@@ -328,36 +339,27 @@ public class KarpfenDiagramServices {
             if (target.eIsSet(feature)) {
                 val = target.eGet(feature);
             }
-        } catch (Throwable t) {
-            if (targetClass != null) {
-                for (EAttribute a : targetClass.getEAllAttributes()) {
-                    if (a.getName() != null && a.getName().equals(attr.getName())) {
-                        try {
-                            if (target.eIsSet(a)) {
-                                val = target.eGet(a);
-                            }
-                        } catch (Throwable ignored) {
-                        }
-                        break;
-                    }
-                }
+        } catch (Throwable t1) {
+            try {
+                val = target.eGet(feature);
+            } catch (Throwable ignored) {
             }
         }
 
         if (val == null) {
-            return attr.getName() + " = ";
+            return featName + " = ";
         }
 
         if (feature.isMany() && val instanceof List<?> list) {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < list.size(); i++) {
-                sb.append(feature.getName()).append(" = ").append(list.get(i));
+                sb.append(featName).append(" = ").append(list.get(i));
                 if (i < list.size() - 1)
                     sb.append("\n");
             }
             return sb.toString();
         }
-        return feature.getName() + " = " + val.toString();
+        return featName + " = " + val.toString();
     }
 
     public String getKModelSlotLabel(EObject context, EAttribute attr) {
@@ -367,8 +369,13 @@ public class KarpfenDiagramServices {
     // ! KMeta ANTLR micro parser, input subsitution
 
     public EObject editKModelObjectHeader(EObject self, String input) {
+        KarpfenLog.trace("DirectEdit-KModel", "editKModelObjectHeader called with input=[" + input + "]");
         if (self == null || input == null || input.isBlank())
             return self;
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return self;
+
         String raw = input.trim();
         String snippet;
 
@@ -387,7 +394,7 @@ public class KarpfenDiagramServices {
             }
         } else if (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
                 && !raw.contains(")")) {
-            snippet = "\"" + raw.replace("\"", "") + "\":\"" + getClassName(self) + "\"";
+            snippet = "\"" + raw.replace("\"", "") + "\":\"" + getClassName(target) + "\"";
         } else {
             snippet = raw;
         }
@@ -397,83 +404,239 @@ public class KarpfenDiagramServices {
             KmodelParser.Object_signatureContext ctx = parser.object_signature();
 
             String newId = unquote(ctx.children.get(0).getText());
-            EClass eClass = resolveEClass(self);
+            EClass eClass = resolveEClass(target);
             if (eClass != null) {
                 EStructuralFeature idFeature = eClass.getEStructuralFeature(ID_FEATURE_NAME);
                 if (idFeature != null) {
-                    self.eSet(idFeature, newId);
+                    target.eSet(idFeature, newId);
+                    markTargetResourceDirty(target);
+                    KarpfenLog.trace("DirectEdit-KModel", "Updated object id to: " + newId);
                 }
             }
         } catch (ParseCancellationException e) {
-            System.err.println("[Karpfen] Direct-Edit Invalid object header rejected: " + input);
+            KarpfenLog.warn("Direct-Edit Invalid object header rejected: " + input);
         }
-        return self;
+        return target;
     }
 
     public EObject editKModelSlotValue(EAttribute attr, EObject context, String input) {
+        KarpfenLog.trace("DirectEdit-KModel", "editKModelSlotValue called with attr="
+                + (attr != null ? attr.getName() : "null") + ", input=[" + input + "]");
         EObject target = resolveSemanticTarget(context);
-        return editKModelSlot(target, attr, input);
+        if (target != null && attr != null) {
+            editKModelSlot(target, attr, input);
+        } else {
+            KarpfenLog.warn("editKModelSlotValue failed: target=" + target + ", attr=" + attr);
+        }
+        return attr;
+    }
+
+    public EObject editKModelSlotValue(EObject context, EAttribute attr, String input) {
+        return editKModelSlotValue(attr, context, input);
     }
 
     public EObject editKModelSlot(EObject container, EAttribute attr, String input) {
+        KarpfenLog.trace("DirectEdit-KModel", "editKModelSlot executing on container=" + container + ", attr="
+                + (attr != null ? attr.getName() : "null") + ", input=[" + input + "]");
         if (container == null || attr == null || input == null || input.isBlank())
             return container;
         EObject target = resolveSemanticTarget(container);
-        if (target == null)
-            return container;
-
-        EClass targetClass = resolveEClass(target);
-        EStructuralFeature feature = (targetClass != null) ? targetClass.getEStructuralFeature(attr.getName()) : attr;
-        if (!(feature instanceof EAttribute targetAttr)) {
+        if (target == null) {
+            KarpfenLog.warn("editKModelSlot: resolveSemanticTarget returned null for container=" + container);
             return container;
         }
 
         String raw = input.trim();
-        String snippet;
+        String featureName = attr.getName();
+        String propValue = raw;
 
-        if (raw.startsWith("prop(") || raw.contains("->")) {
-            snippet = raw;
+        if (raw.startsWith("prop(") && raw.contains("->")) {
+            try {
+                KmodelParser parser = createKmodelParser(raw);
+                KmodelParser.Prop_statementContext ctx = parser.prop_statement();
+                featureName = unquote(ctx.STRING(0).getText());
+                propValue = unquote(ctx.STRING(1).getText());
+            } catch (ParseCancellationException e) {
+                KarpfenLog.warn("Direct-Edit Input rejected by KModel prop_statement: " + input);
+                return container;
+            }
+        } else if (raw.contains("->")) {
+            String[] parts = raw.split("->", 2);
+            String k = unquote(parts[0].replace("prop(", "").replace(")", "").trim());
+            if (!k.isEmpty())
+                featureName = k;
+            propValue = unquote(parts[1].trim());
         } else if (raw.contains("=")) {
             String[] parts = raw.split("=", 2);
-            String key = parts[0].trim().replace("\"", "");
-            String val = parts[1].trim().replace("\"", "");
-            if (key.contains(" ") || key.isEmpty()) {
-                snippet = raw;
-            } else {
-                snippet = String.format("prop(\"%s\") -> \"%s\"", key, val);
-            }
-        } else if (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
-                && !raw.contains(")")) {
-            snippet = String.format("prop(\"%s\") -> \"%s\"", targetAttr.getName(), raw.replace("\"", ""));
+            String k = unquote(parts[0].trim());
+            if (!k.isEmpty())
+                featureName = k;
+            propValue = unquote(parts[1].trim());
+        } else if (raw.contains(":")) {
+            String[] parts = raw.split(":", 2);
+            String k = unquote(parts[0].trim());
+            if (!k.isEmpty())
+                featureName = k;
+            propValue = unquote(parts[1].trim());
         } else {
-            snippet = raw;
+            propValue = unquote(raw);
+        }
+
+        EClass targetClass = resolveEClass(target);
+        if (targetClass == null) {
+            targetClass = target.eClass();
+        }
+        if (targetClass == null)
+            return container;
+
+        EAttribute targetAttr = null;
+        EStructuralFeature feature = targetClass.getEStructuralFeature(featureName);
+        if (feature instanceof EAttribute ea) {
+            targetAttr = ea;
+        } else {
+            for (EAttribute a : targetClass.getEAllAttributes()) {
+                if (featureName.equals(a.getName())) {
+                    targetAttr = a;
+                    break;
+                }
+            }
+        }
+        if (targetAttr == null && target.eClass() != null) {
+            for (EAttribute a : target.eClass().getEAllAttributes()) {
+                if (featureName.equals(a.getName())) {
+                    targetAttr = a;
+                    break;
+                }
+            }
+        }
+        if (targetAttr == null) {
+            targetAttr = attr;
         }
 
         try {
-            KmodelParser parser = createKmodelParser(snippet);
-            KmodelParser.Prop_statementContext ctx = parser.prop_statement();
-
-            String propValue = unquote(ctx.STRING(1).getText());
             Object converted = convertStringToValue(propValue, targetAttr.getEAttributeType());
-
-            if (targetAttr.isMany()) {
-                @SuppressWarnings("unchecked")
-                List<Object> list = (List<Object>) target.eGet(targetAttr);
-                list.add(converted);
-            } else {
-                target.eSet(targetAttr, converted);
+            EStructuralFeature actualFeat = target.eClass().getEStructuralFeature(targetAttr.getName());
+            if (actualFeat == null) {
+                actualFeat = targetAttr;
             }
-        } catch (ParseCancellationException e) {
-            System.err.println("[Karpfen] Direct-Edit Input rejected by KModel prop_statement: " + input);
+
+            if (actualFeat.isMany()) {
+                Object rawList = target.eGet(actualFeat);
+                if (rawList instanceof List<?> list) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> mList = (List<Object>) list;
+                    mList.clear();
+                    mList.add(converted);
+                }
+            } else {
+                target.eSet(actualFeat, converted);
+            }
+            markTargetResourceDirty(target);
+            KarpfenLog
+                    .info("[DirectEdit-KModel] Successfully set " + featureName + " = " + converted + " on " + target);
+        } catch (Throwable t) {
+            KarpfenLog.warn("Direct-Edit conversion failed for " + featureName + " value [" + propValue + "]: "
+                    + t.getMessage());
         }
-        return container;
+
+        return target;
     }
 
     public EObject editKModelSlot(EAttribute attr, EObject container, String input) {
         return editKModelSlot(container, attr, input);
     }
 
-    // ANTLR micro-parse validator for label edits
+    // KModel create operations palette
+
+    public EObject createNewKModelObject(EObject self, EObject container) {
+        EObject root = resolveSemanticTarget(container != null ? container : self);
+        if (root == null || root.eClass() == null || root.eClass().getEPackage() == null)
+            return root;
+
+        EPackage pkg = root.eClass().getEPackage();
+        EClass targetClass = null;
+        for (EClassifier classifier : pkg.getEClassifiers()) {
+            if (classifier instanceof EClass ec && !ec.isAbstract() && !ec.getName().equals(root.eClass().getName())) {
+                targetClass = ec;
+                break;
+            }
+        }
+        if (targetClass == null) {
+            targetClass = root.eClass();
+        }
+
+        EObject newInstance = EcoreUtil.create(targetClass);
+        EStructuralFeature idFeat = targetClass.getEStructuralFeature(ID_FEATURE_NAME);
+        if (idFeat != null) {
+            String generatedId = targetClass.getName().toLowerCase() + "_" + (System.currentTimeMillis() % 1000);
+            newInstance.eSet(idFeat, generatedId);
+        }
+
+        boolean attached = false;
+        for (EReference ref : root.eClass().getEAllContainments()) {
+            if (ref.getEReferenceType().isSuperTypeOf(targetClass)) {
+                if (ref.isMany()) {
+                    @SuppressWarnings("unchecked")
+                    List<EObject> list = (List<EObject>) root.eGet(ref);
+                    list.add(newInstance);
+                } else if (root.eGet(ref) == null) {
+                    root.eSet(ref, newInstance);
+                }
+                attached = true;
+                break;
+            }
+        }
+
+        if (!attached && root.eResource() != null) {
+            root.eResource().getContents().add(newInstance);
+        }
+
+        markTargetResourceDirty(root);
+        KarpfenLog.info("[Palette-KModel] Created new instance of " + targetClass.getName() + " on " + root);
+        return newInstance;
+    }
+
+    public EObject createInstanceLink(EObject source, EObject target, boolean isContainment) {
+        EObject src = resolveSemanticTarget(source);
+        EObject tgt = resolveSemanticTarget(target);
+        if (src == null || tgt == null || src.eClass() == null || tgt.eClass() == null)
+            return src;
+
+        for (EReference ref : src.eClass().getEAllReferences()) {
+            if (ref.isContainment() == isContainment && ref.getEReferenceType().isSuperTypeOf(tgt.eClass())) {
+                if (ref.isMany()) {
+                    @SuppressWarnings("unchecked")
+                    List<EObject> list = (List<EObject>) src.eGet(ref);
+                    if (!list.contains(tgt)) {
+                        list.add(tgt);
+                    }
+                } else {
+                    src.eSet(ref, tgt);
+                }
+                markTargetResourceDirty(src);
+                KarpfenLog.info("[Palette-KModel] Linked " + src + " -> " + tgt + " via " + ref.getName());
+                break;
+            }
+        }
+        return src;
+    }
+
+    // Hack to mark open files dirty, required for synchronization
+
+    private void markTargetResourceDirty(EObject context) {
+        if (context == null)
+            return;
+        Resource directRes = context.eResource();
+        if (directRes == null && context instanceof EAttribute attr && attr.getEContainingClass() != null) {
+            directRes = attr.getEContainingClass().eResource();
+        }
+        if (directRes != null) {
+            directRes.setModified(true);
+            KarpfenLog.trace("DirtyHook", "Flagged target resource as dirty: " + directRes.getURI());
+        }
+    }
+
+    // ANTRL parser factories for input validations
 
     private KmetaParser createKmetaParser(String snippet) {
         CharStream stream = CharStreams.fromString(snippet);
@@ -499,60 +662,25 @@ public class KarpfenDiagramServices {
         return parser;
     }
 
-    // helpers
-
-    private void synchronizeFeatureMultiplicity(EStructuralFeature feature, boolean wasMany, boolean isMany) {
-        if (wasMany == isMany || feature.getEContainingClass() == null) {
-            return;
-        }
-        EClass containingClass = feature.getEContainingClass();
-        EPackage pkg = containingClass.getEPackage();
-        if (pkg == null || pkg.eResource() == null || pkg.eResource().getResourceSet() == null) {
-            return;
-        }
-
-        for (Resource res : pkg.eResource().getResourceSet().getResources()) {
-            TreeIterator<EObject> allContents = res.getAllContents();
-            while (allContents.hasNext()) {
-                EObject obj = allContents.next();
-                if (obj.eClass() == containingClass || containingClass.isSuperTypeOf(obj.eClass())) {
-                    if (obj.eIsSet(feature)) {
-                        try {
-                            if (isMany) {
-                                Object val = obj.eGet(feature);
-                                if (val != null && !(val instanceof List<?>)) {
-                                    obj.eUnset(feature);
-                                    @SuppressWarnings("unchecked")
-                                    List<Object> list = (List<Object>) obj.eGet(feature);
-                                    list.add(val);
-                                }
-                            } else {
-                                Object val = obj.eGet(feature);
-                                if (val instanceof List<?> list) {
-                                    Object first = list.isEmpty() ? null : list.get(0);
-                                    obj.eUnset(feature);
-                                    if (first != null) {
-                                        obj.eSet(feature, first);
-                                    }
-                                }
-                            }
-                        } catch (Throwable ignored) {
-                            obj.eUnset(feature);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Helpers
 
     private EObject resolveSemanticTarget(EObject context) {
         if (context instanceof DSemanticDecorator decorator) {
             EObject target = decorator.getTarget();
-            if (target != null && !(target instanceof EAttribute) && !(target instanceof EReference)) {
+            if (target != null && !(target instanceof EAttribute) && !(target instanceof EReference)
+                    && !(target instanceof EPackage)) {
                 return target;
             }
-            if (decorator.eContainer() instanceof DSemanticDecorator parentDecorator) {
-                return parentDecorator.getTarget();
+            EObject curr = decorator.eContainer();
+            while (curr != null) {
+                if (curr instanceof DSemanticDecorator parentDec) {
+                    EObject parentTarget = parentDec.getTarget();
+                    if (parentTarget != null && !(parentTarget instanceof EAttribute)
+                            && !(parentTarget instanceof EReference) && !(parentTarget instanceof EPackage)) {
+                        return parentTarget;
+                    }
+                }
+                curr = curr.eContainer();
             }
             return target;
         }
@@ -589,23 +717,34 @@ public class KarpfenDiagramServices {
     private Object convertStringToValue(String val, EClassifier classifier) {
         if (classifier == null || val == null)
             return val;
-        String name = classifier.getName().toLowerCase();
-        if (name.contains("double") || name.contains("float") || name.contains("number")) {
-            return Double.parseDouble(val);
+        String cleanVal = unquote(val);
+        String name = classifier.getName();
+        if (name == null) {
+            name = classifier.getInstanceClassName();
         }
-        if (name.contains("int") || name.contains("long")) {
-            return Integer.parseInt(val);
+        String lower = name != null ? name.toLowerCase() : "";
+
+        if (lower.contains("double") || lower.contains("float") || lower.contains("number")
+                || classifier == EcorePackage.Literals.EDOUBLE || classifier == EcorePackage.Literals.EFLOAT) {
+            return Double.parseDouble(cleanVal);
         }
-        if (name.contains("bool")) {
-            return Boolean.parseBoolean(val);
+        if (lower.contains("int") || lower.contains("long")
+                || classifier == EcorePackage.Literals.EINT || classifier == EcorePackage.Literals.ELONG) {
+            return Integer.parseInt(cleanVal);
         }
-        return val;
+        if (lower.contains("bool") || classifier == EcorePackage.Literals.EBOOLEAN) {
+            return Boolean.parseBoolean(cleanVal);
+        }
+        return cleanVal;
     }
 
     private String mapEcoreToKarpfenType(EClassifier classifier) {
         if (classifier == null)
             return "string";
         String name = classifier.getName();
+        if (name == null) {
+            name = classifier.getInstanceClassName();
+        }
         if (name == null)
             return "string";
         String lower = name.toLowerCase();

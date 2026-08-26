@@ -43,6 +43,7 @@ import org.eclipse.sirius.viewpoint.description.JavaExtension;
 import org.eclipse.sirius.viewpoint.description.Viewpoint;
 import org.eclipse.sirius.viewpoint.description.tool.ChangeContext;
 import org.eclipse.sirius.viewpoint.description.tool.CreateInstance;
+import org.eclipse.sirius.viewpoint.description.tool.EditMaskVariables;
 import org.eclipse.sirius.viewpoint.description.tool.InitEdgeCreationOperation;
 import org.eclipse.sirius.viewpoint.description.tool.InitialNodeCreationOperation;
 import org.eclipse.sirius.viewpoint.description.tool.InitialOperation;
@@ -55,8 +56,10 @@ public class OdesignGenerator {
 
     // Init EMF and Sirius dependencies to run them in runner class.
     public static void initStandalone() {
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("odesign", new XMIResourceFactoryImpl());
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put(Resource.Factory.Registry.DEFAULT_EXTENSION,
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("odesign",
+                new XMIResourceFactoryImpl());
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put(
+                Resource.Factory.Registry.DEFAULT_EXTENSION,
                 new XMIResourceFactoryImpl());
 
         // ECore deps
@@ -83,7 +86,8 @@ public class OdesignGenerator {
         initStandalone();
 
         Path targetPath = Paths.get(RELATIVE_RESOURCE_PATH);
-        if (!targetPath.toFile().exists() && Paths.get("app", RELATIVE_RESOURCE_PATH).getParent().toFile().exists()) {
+        if (!targetPath.toFile().exists()
+                && Paths.get("app", RELATIVE_RESOURCE_PATH).getParent().toFile().exists()) {
             targetPath = Paths.get("app", RELATIVE_RESOURCE_PATH);
         }
 
@@ -105,7 +109,8 @@ public class OdesignGenerator {
         Group group = org.eclipse.sirius.viewpoint.description.DescriptionFactory.eINSTANCE.createGroup();
         group.setName("KarpfenGroup");
 
-        Viewpoint viewpoint = org.eclipse.sirius.viewpoint.description.DescriptionFactory.eINSTANCE.createViewpoint();
+        Viewpoint viewpoint = org.eclipse.sirius.viewpoint.description.DescriptionFactory.eINSTANCE
+                .createViewpoint();
         viewpoint.setName("KarpfenViewpoint");
         viewpoint.setLabel("Karpfen Visualizations");
         group.getOwnedViewpoints().add(viewpoint);
@@ -124,7 +129,7 @@ public class OdesignGenerator {
         kmetaDiagram.setName("KMetaClassDiagram");
         kmetaDiagram.setLabel("KMeta Class Diagram");
         kmetaDiagram.setDomainClass("ecore.EPackage");
-        kmetaDiagram.getMetamodel().add(EcorePackage.eINSTANCE); // aql requires it
+        kmetaDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
         viewpoint.getOwnedRepresentations().add(kmetaDiagram);
 
         Layer kmetaDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
@@ -144,18 +149,17 @@ public class OdesignGenerator {
         classStyle.setShowIcon(true);
         classStyle.setBorderSizeComputationExpression("1");
         eClassNode.setStyle(classStyle);
-
-        kmetaDefaultLayer.getContainerMappings().add(eClassNode); // save
+        kmetaDefaultLayer.getContainerMappings().add(eClassNode);
 
         // Class attributes subnodes - EAttribute in EClass
         NodeMapping attributeNode = DescriptionFactory.eINSTANCE.createNodeMapping();
         attributeNode.setName("EAttributeNode");
         attributeNode.setDomainClass("ecore.EAttribute");
-        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes->select(a | a.name <> '__id__')");
+        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes->select(a | a.name != '__id__')");
 
         NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
         attrStyle.setLabelExpression("aql:self.getKMetaAttributeLabel()");
-        attrStyle.setShowIcon(true);
+        attrStyle.setShowIcon(false);
         attrStyle.setLabelAlignment(LabelAlignment.LEFT);
         attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
         attrStyle.setBorderSizeComputationExpression("0");
@@ -180,13 +184,13 @@ public class OdesignGenerator {
         hasEdgeStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
         hasEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         hasEdgeStyle.setSizeComputationExpression("1");
-        CenterLabelStyleDescription kmetaHasLabelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        CenterLabelStyleDescription kmetaHasLabelStyle = StyleFactory.eINSTANCE
+                .createCenterLabelStyleDescription();
         kmetaHasLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
         kmetaHasLabelStyle.setShowIcon(false);
         hasEdgeStyle.setCenterLabelStyleDescription(kmetaHasLabelStyle);
         kmetaHasEdge.setStyle(hasEdgeStyle);
-
-        kmetaDefaultLayer.getEdgeMappings().add(kmetaHasEdge); // save
+        kmetaDefaultLayer.getEdgeMappings().add(kmetaHasEdge);
 
         // Edge knows - association reference
         EdgeMapping kmetaKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
@@ -194,7 +198,7 @@ public class OdesignGenerator {
         kmetaKnowsEdge.setDomainClass("ecore.EReference");
         kmetaKnowsEdge.setUseDomainElement(true);
         kmetaKnowsEdge.setSemanticCandidatesExpression(
-                "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not r.containment)");
+                "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not(r.containment))");
         kmetaKnowsEdge.getSourceMapping().add(eClassNode);
         kmetaKnowsEdge.getTargetMapping().add(eClassNode);
         kmetaKnowsEdge.setSourceFinderExpression("aql:self.eContainingClass");
@@ -204,13 +208,13 @@ public class OdesignGenerator {
         knowsEdgeStyle.setLineStyle(LineStyle.DASH_LITERAL);
         knowsEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         knowsEdgeStyle.setSizeComputationExpression("1");
-        CenterLabelStyleDescription kmetaKnowsLabelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        CenterLabelStyleDescription kmetaKnowsLabelStyle = StyleFactory.eINSTANCE
+                .createCenterLabelStyleDescription();
         kmetaKnowsLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
         kmetaKnowsLabelStyle.setShowIcon(false);
         knowsEdgeStyle.setCenterLabelStyleDescription(kmetaKnowsLabelStyle);
         kmetaKnowsEdge.setStyle(knowsEdgeStyle);
-
-        kmetaDefaultLayer.getEdgeMappings().add(kmetaKnowsEdge); // save
+        kmetaDefaultLayer.getEdgeMappings().add(kmetaKnowsEdge);
 
         // KMETA TOOLS
         buildKMetaToolSections(kmetaDefaultLayer, eClassNode, attributeNode, kmetaHasEdge, kmetaKnowsEdge);
@@ -222,7 +226,6 @@ public class OdesignGenerator {
         kmodelDiagram.setName("KModelObjectDiagram");
         kmodelDiagram.setLabel("KModel Object Diagram");
         kmodelDiagram.setDomainClass("ecore.EObject");
-        kmodelDiagram.setPreconditionExpression("aql:self.eContainer() = null");
         kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
         viewpoint.getOwnedRepresentations().add(kmodelDiagram);
 
@@ -246,7 +249,7 @@ public class OdesignGenerator {
         eObjectNode.setStyle(objStyle);
         kmodelDefaultLayer.getContainerMappings().add(eObjectNode);
 
-        // EAttribute Slot Subnodes (mapped to ecore.EAttribute)
+        // Slot Subnode Mapping: uses (view) context to resolve parent dynamic EObject
         NodeMapping slotNode = DescriptionFactory.eINSTANCE.createNodeMapping();
         slotNode.setName("EAttributeSlotNode");
         slotNode.setDomainClass("ecore.EAttribute");
@@ -294,7 +297,7 @@ public class OdesignGenerator {
         kmodelDefaultLayer.getEdgeMappings().add(instanceKnowsEdge);
 
         // KModel TOOLS
-        buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode);
+        buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode, instanceHasEdge, instanceKnowsEdge);
 
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();
@@ -303,10 +306,16 @@ public class OdesignGenerator {
         resource.getContents().add(group);
         resource.save(Collections.emptyMap());
 
-        System.out.println("Successfully generated .odesign at: " + outputFile.getAbsolutePath());
+        KarpfenLog.info("Successfully generated .odesign at: " + outputFile.getAbsolutePath());
     }
 
-    // https://wiki.eclipse.org/Sirius/Tutorials/AdvancedTutorial
+    private static void applyDirectEditMask(DirectEditLabel directEditTool,
+            org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf) {
+        EditMaskVariables mask = vtf.createEditMaskVariables();
+        mask.setMask("{0}");
+        directEditTool.setMask(mask);
+    }
+
     private static void buildKMetaToolSections(Layer defaultLayer,
             ContainerMapping eClassNode, NodeMapping attributeNode,
             EdgeMapping hasEdge, EdgeMapping knowsEdge) {
@@ -363,6 +372,7 @@ public class OdesignGenerator {
 
         DirectEditLabel editClassName = dtf.createDirectEditLabel();
         editClassName.setName("EditTypeName");
+        applyDirectEditMask(editClassName, vtf);
         InitialOperation editClassOp = vtf.createInitialOperation();
         ChangeContext editClassCtx = vtf.createChangeContext();
         editClassCtx.setBrowseExpression("aql:self.editClassName(arg0)");
@@ -373,6 +383,7 @@ public class OdesignGenerator {
 
         DirectEditLabel editAttr = dtf.createDirectEditLabel();
         editAttr.setName("EditAttributeDSL");
+        applyDirectEditMask(editAttr, vtf);
         InitialOperation editAttrOp = vtf.createInitialOperation();
         ChangeContext editAttrCtx = vtf.createChangeContext();
         editAttrCtx.setBrowseExpression("aql:self.editKMetaAttribute(arg0)");
@@ -383,6 +394,7 @@ public class OdesignGenerator {
 
         DirectEditLabel editHas = dtf.createDirectEditLabel();
         editHas.setName("EditHasEdge");
+        applyDirectEditMask(editHas, vtf);
         InitialOperation editHasOp = vtf.createInitialOperation();
         ChangeContext editHasCtx = vtf.createChangeContext();
         editHasCtx.setBrowseExpression("aql:self.editKMetaEdge(arg0)");
@@ -393,6 +405,7 @@ public class OdesignGenerator {
 
         DirectEditLabel editKnows = dtf.createDirectEditLabel();
         editKnows.setName("EditKnowsEdge");
+        applyDirectEditMask(editKnows, vtf);
         InitialOperation editKnowsOp = vtf.createInitialOperation();
         ChangeContext editKnowsCtx = vtf.createChangeContext();
         editKnowsCtx.setBrowseExpression("aql:self.editKMetaEdge(arg0)");
@@ -407,11 +420,14 @@ public class OdesignGenerator {
         defaultLayer.getToolSections().add(propSection);
 
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString", 1));
+                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString",
+                        1));
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble", 1));
+                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble",
+                        1));
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean", 1));
+                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean",
+                        1));
         propSection.getOwnedTools()
                 .add(createPropertyTool(attributeNode, "List Property", "items", "ecore::EString", -1));
 
@@ -421,17 +437,19 @@ public class OdesignGenerator {
         defaultLayer.getToolSections().add(relSection);
 
         relSection.getOwnedTools().add(createReferenceTool(hasEdge, "has (1:1 embedded)", "has_", true, 1));
-        relSection.getOwnedTools().add(createReferenceTool(hasEdge, "has (1:N embedded list)", "has_list_", true, -1));
+        relSection.getOwnedTools()
+                .add(createReferenceTool(hasEdge, "has (1:N embedded list)", "has_list_", true, -1));
         relSection.getOwnedTools().add(createReferenceTool(knowsEdge, "knows (1:1 link)", "knows_", false, 1));
         relSection.getOwnedTools()
                 .add(createReferenceTool(knowsEdge, "knows (1:N link list)", "knows_list_", false, -1));
     }
 
     private static void buildKModelToolSections(Layer defaultLayer, ContainerMapping eObjectNode,
-            NodeMapping slotNode) {
+            NodeMapping slotNode, EdgeMapping instanceHasEdge, EdgeMapping instanceKnowsEdge) {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
+        // Direct Edit Section
         ToolSection modelSection = dtf.createToolSection();
         modelSection.setName("ModelSection");
         modelSection.setLabel("Model Operations");
@@ -439,6 +457,7 @@ public class OdesignGenerator {
 
         DirectEditLabel editObjectHeader = dtf.createDirectEditLabel();
         editObjectHeader.setName("EditObjectHeader");
+        applyDirectEditMask(editObjectHeader, vtf);
         InitialOperation editHeaderOp = vtf.createInitialOperation();
         ChangeContext editHeaderCtx = vtf.createChangeContext();
         editHeaderCtx.setBrowseExpression("aql:self.editKModelObjectHeader(arg0)");
@@ -449,6 +468,7 @@ public class OdesignGenerator {
 
         DirectEditLabel editSlot = dtf.createDirectEditLabel();
         editSlot.setName("EditSlotValue");
+        applyDirectEditMask(editSlot, vtf);
         InitialOperation editSlotOp = vtf.createInitialOperation();
         ChangeContext editSlotCtx = vtf.createChangeContext();
         editSlotCtx.setBrowseExpression("aql:self.editKModelSlotValue(view, arg0)");
@@ -456,6 +476,52 @@ public class OdesignGenerator {
         editSlot.setInitialOperation(editSlotOp);
         slotNode.setLabelDirectEdit(editSlot);
         modelSection.getOwnedTools().add(editSlot);
+
+        // Object Creation Palette Section
+        ToolSection creationSection = dtf.createToolSection();
+        creationSection.setName("ObjectsSection");
+        creationSection.setLabel("Objects");
+        defaultLayer.getToolSections().add(creationSection);
+
+        ContainerCreationDescription createObjectTool = dtf.createContainerCreationDescription();
+        createObjectTool.setName("CreateObjectTool");
+        createObjectTool.setLabel("New Object Instance");
+        createObjectTool.getContainerMappings().add(eObjectNode);
+
+        InitialNodeCreationOperation createObjOp = vtf.createInitialNodeCreationOperation();
+        ChangeContext createObjCtx = vtf.createChangeContext();
+        createObjCtx.setBrowseExpression("aql:self.createNewKModelObject(container)");
+        createObjOp.setFirstModelOperations(createObjCtx);
+        createObjectTool.setInitialOperation(createObjOp);
+        creationSection.getOwnedTools().add(createObjectTool);
+
+        // Object Relationships Palette Section
+        ToolSection linkSection = dtf.createToolSection();
+        linkSection.setName("InstanceLinksSection");
+        linkSection.setLabel("Links");
+        defaultLayer.getToolSections().add(linkSection);
+
+        EdgeCreationDescription createHasLinkTool = dtf.createEdgeCreationDescription();
+        createHasLinkTool.setName("CreateHasLink");
+        createHasLinkTool.setLabel("has (Containment Link)");
+        createHasLinkTool.getEdgeMappings().add(instanceHasEdge);
+        InitEdgeCreationOperation hasLinkOp = vtf.createInitEdgeCreationOperation();
+        ChangeContext hasLinkCtx = vtf.createChangeContext();
+        hasLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, true)");
+        hasLinkOp.setFirstModelOperations(hasLinkCtx);
+        createHasLinkTool.setInitialOperation(hasLinkOp);
+        linkSection.getOwnedTools().add(createHasLinkTool);
+
+        EdgeCreationDescription createKnowsLinkTool = dtf.createEdgeCreationDescription();
+        createKnowsLinkTool.setName("CreateKnowsLink");
+        createKnowsLinkTool.setLabel("knows (Reference Link)");
+        createKnowsLinkTool.getEdgeMappings().add(instanceKnowsEdge);
+        InitEdgeCreationOperation knowsLinkOp = vtf.createInitEdgeCreationOperation();
+        ChangeContext knowsLinkCtx = vtf.createChangeContext();
+        knowsLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, false)");
+        knowsLinkOp.setFirstModelOperations(knowsLinkCtx);
+        createKnowsLinkTool.setInitialOperation(knowsLinkOp);
+        linkSection.getOwnedTools().add(createKnowsLinkTool);
     }
 
     private static NodeCreationDescription createPropertyTool(NodeMapping attributeNode, String label,
@@ -504,7 +570,8 @@ public class OdesignGenerator {
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
         EdgeCreationDescription tool = dtf.createEdgeCreationDescription();
-        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-", ""));
+        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-",
+                ""));
         tool.setLabel(label);
         tool.getEdgeMappings().add(edgeMapping);
 
@@ -546,10 +613,9 @@ public class OdesignGenerator {
     public static void main(String[] args) {
         try {
             File result = generateToResources();
-            System.out.println("Generation completed: " + result.getAbsolutePath());
+            KarpfenLog.info("Generation completed: " + result.getAbsolutePath());
         } catch (Exception e) {
-            System.err.println("Failed to generate .odesign model: " + e.getMessage());
-            e.printStackTrace();
+            KarpfenLog.error("Failed to generate .odesign model: " + e.getMessage(), e);
             System.exit(1);
         }
     }

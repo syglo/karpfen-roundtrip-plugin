@@ -1,6 +1,7 @@
 package org.karpfen.serializer;
 
 import org.eclipse.emf.ecore.EObject;
+import org.karpfen.design.KarpfenLog;
 
 public class AcceleoKModelSerializer implements KModelSerializer {
 
@@ -15,6 +16,11 @@ public class AcceleoKModelSerializer implements KModelSerializer {
         if (rootObject == null) {
             return "";
         }
-        return runner.generateToString(MODULE_NAME, TEMPLATE_NAME, OUTPUT_FILE, rootObject);
+        try {
+            return runner.generateToString(MODULE_NAME, TEMPLATE_NAME, OUTPUT_FILE, rootObject);
+        } catch (Throwable t) {
+            KarpfenLog.warn("Acceleo template serialization fallback invoked: " + t.getMessage());
+            return new EcoreToKModelManualSerializer().serialize(rootObject);
+        }
     }
 }

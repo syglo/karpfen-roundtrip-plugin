@@ -1,6 +1,7 @@
 package org.karpfen.serializer;
 
 import org.eclipse.emf.ecore.EPackage;
+import org.karpfen.design.KarpfenLog;
 
 public class AcceleoKMetaSerializer implements KMetaSerializer {
 
@@ -15,7 +16,11 @@ public class AcceleoKMetaSerializer implements KMetaSerializer {
         if (ePackage == null) {
             return "";
         }
-        return runner.generateToString(MODULE_NAME, TEMPLATE_NAME, OUTPUT_FILE, ePackage);
+        try {
+            return runner.generateToString(MODULE_NAME, TEMPLATE_NAME, OUTPUT_FILE, ePackage);
+        } catch (Throwable t) {
+            KarpfenLog.warn("Acceleo template serialization fallback invoked: " + t.getMessage());
+            return new EcoreToKMetaManualSerializer().serialize(ePackage);
+        }
     }
-
 }

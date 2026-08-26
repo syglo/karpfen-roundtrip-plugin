@@ -8,6 +8,7 @@ import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.emf.common.util.URI;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.reconciler.DirtyRegion;
@@ -15,6 +16,7 @@ import org.eclipse.jface.text.reconciler.IReconcilingStrategy;
 import org.eclipse.jface.text.reconciler.IReconcilingStrategyExtension;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IFileEditorInput;
+import org.karpfen.design.KarpfenLog;
 import org.karpfen.resource.KarpfenProblemMarkerManager;
 
 import dsl.textual.KmetaDSLConverter;
@@ -65,25 +67,28 @@ public class KarpfenReconcilingStrategy implements IReconcilingStrategy, IReconc
         IFile file = fileInput.getFile();
         String content = document.get();
         String ext = file.getFileExtension() != null ? file.getFileExtension().toLowerCase() : "";
-        org.eclipse.emf.common.util.URI uri = org.eclipse.emf.common.util.URI
-                .createPlatformResourceURI(file.getFullPath().toString(), true);
+        URI uri = URI.createPlatformResourceURI(file.getFullPath().toString(), true);
 
         try {
             if ("kmeta".equals(ext)) {
                 KmetaDSLConverter.INSTANCE.parseKmetaString(content, Collections.emptyList());
+                KarpfenProblemMarkerManager.clearMarkers(uri);
             } else if ("kmodel".equals(ext)) {
                 Metamodel metamodel = resolveCompanionMetamodel(file);
-                if (metamodel != null) {
-                    KmodelDSLConverter.INSTANCE.parseKmodelString(content, metamodel);
+                if (metamodel == null) {
+                    throw new IllegalArgumentException(
+                            "Could not resolve corresponding .kmeta (Place a matching .kmeta file in the same folder).");
                 }
+                KmodelDSLConverter.INSTANCE.parseKmodelString(content, metamodel);
+                KarpfenProblemMarkerManager.clearMarkers(uri);
             } else if ("kstates".equals(ext)) {
                 KstatesDSLConverter.INSTANCE.parseKstatesString(content);
+                KarpfenProblemMarkerManager.clearMarkers(uri);
             }
-
-            KarpfenProblemMarkerManager.clearMarkers(uri);
 
         } catch (Throwable t) {
             KarpfenProblemMarkerManager.reportError(uri, content, t);
+            KarpfenLog.warn("Reconciler detected issue in " + file.getName() + ": " + t.getMessage());
         }
     }
 
@@ -110,7 +115,7 @@ public class KarpfenReconcilingStrategy implements IReconcilingStrategy, IReconc
     }
 
     private Metamodel parseMetamodel(IFile kmetaFile) {
-        try (InputStream in = kmetaFile.getContents()) {
+        try (InputStream in = kmetaFile.getContents(true)) {
             String kmetaContent = new String(in.readAllBytes(), StandardCharsets.UTF_8);
             return KmetaDSLConverter.INSTANCE.parseKmetaString(kmetaContent, Collections.emptyList());
         } catch (Throwable ignored) {

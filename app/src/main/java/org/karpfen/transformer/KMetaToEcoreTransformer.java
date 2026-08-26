@@ -51,15 +51,16 @@ public class KMetaToEcoreTransformer {
             eClass.setName(classType.getName());
 
             // !! VERY IMPORTANT fix for kmodel, to have ability create new View KModel
-            // Diagramm
+            // Diagramm, Allows Sirius domainClass = "ecore.EObject" to match dynamic
+            // EClasses
             eClass.getESuperTypes().add(EcorePackage.Literals.EOBJECT);
 
-            // Synthetic instance identifier attributes (helps later)
+            // Synthetic instance identifier attributes
             EAttribute idAttr = factory.createEAttribute();
             idAttr.setName(ID_FEATURE_NAME);
             idAttr.setEType(EcorePackage.Literals.ESTRING);
-            idAttr.setID(true); // EMF unique intrinsic ID
-            idAttr.setDefaultValue("");
+            idAttr.setID(true);
+            idAttr.setDefaultValueLiteral("");
             idAttr.setUnsettable(true);
             eClass.getEStructuralFeatures().add(idAttr);
 
@@ -101,7 +102,7 @@ public class KMetaToEcoreTransformer {
                 reference.setEType(targetClass);
 
                 // if true then has = EMBEDDED, if false then knows = LINK
-                boolean isContainment = (rel.getAssociationType() == AssociationType.EMBEDDED); // or LINK
+                boolean isContainment = (rel.getAssociationType() == AssociationType.EMBEDDED);
                 reference.setContainment(isContainment);
                 reference.setUpperBound(rel.isList() ? ETypedElement.UNBOUNDED_MULTIPLICITY : 1);
 

@@ -9,9 +9,14 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.emf.common.util.URI;
+import org.karpfen.design.KarpfenLog;
 
 public final class KarpfenProblemMarkerManager {
 
@@ -30,12 +35,24 @@ public final class KarpfenProblemMarkerManager {
 
     public static void clearMarkers(URI uri) {
         IFile file = getWorkspaceFile(uri);
-        if (file != null && file.exists()) {
-            try {
-                file.deleteMarkers(MARKER_TYPE, true, IResource.DEPTH_ZERO);
-            } catch (CoreException ignored) {
-            }
+        if (file == null || !file.exists()) {
+            return;
         }
+
+        WorkspaceJob job = new WorkspaceJob("Clear Karpfen Markers") {
+            @Override
+            public IStatus runInWorkspace(IProgressMonitor monitor) {
+                try {
+                    if (file.exists()) {
+                        file.deleteMarkers(MARKER_TYPE, true, IResource.DEPTH_ZERO);
+                    }
+                } catch (CoreException ignored) {
+                }
+                return Status.OK_STATUS;
+            }
+        };
+        job.setSystem(true);
+        job.schedule();
     }
 
     public static void reportError(URI uri, String sourceContent, Throwable ex) {
@@ -44,18 +61,29 @@ public final class KarpfenProblemMarkerManager {
             return;
         }
 
-        int line = findOffendingLine(ex, sourceContent);
-        String userFriendlyMessage = formatUserMessage(ex);
+        final int line = findOffendingLine(ex, sourceContent);
+        final String userFriendlyMessage = formatUserMessage(ex);
 
-        try {
-            clearMarkers(uri);
-            IMarker marker = file.createMarker(MARKER_TYPE);
-            marker.setAttribute(IMarker.MESSAGE, userFriendlyMessage);
-            marker.setAttribute(IMarker.SEVERITY, IMarker.SEVERITY_ERROR);
-            marker.setAttribute(IMarker.LINE_NUMBER, line);
-            marker.setAttribute(IMarker.PRIORITY, IMarker.PRIORITY_HIGH);
-        } catch (CoreException ignored) {
-        }
+        WorkspaceJob job = new WorkspaceJob("Report Karpfen Marker") {
+            @Override
+            public IStatus runInWorkspace(IProgressMonitor monitor) {
+                try {
+                    if (file.exists()) {
+                        file.deleteMarkers(MARKER_TYPE, true, IResource.DEPTH_ZERO);
+                        IMarker marker = file.createMarker(MARKER_TYPE);
+                        marker.setAttribute(IMarker.MESSAGE, userFriendlyMessage);
+                        marker.setAttribute(IMarker.SEVERITY, IMarker.SEVERITY_ERROR);
+                        marker.setAttribute(IMarker.LINE_NUMBER, line);
+                        marker.setAttribute(IMarker.PRIORITY, IMarker.PRIORITY_HIGH);
+                    }
+                } catch (CoreException e) {
+                    KarpfenLog.warn("Could not set marker: " + e.getMessage());
+                }
+                return Status.OK_STATUS;
+            }
+        };
+        job.setSystem(true);
+        job.schedule();
     }
 
     public static IFile getWorkspaceFile(URI uri) {
@@ -162,7 +190,10 @@ public final class KarpfenProblemMarkerManager {
             return "Type Mismatch: " + raw + " (Expected a valid numeric literal conforming to the metamodel).";
         }
 
-        // antrl lexr token recognition errors
+        if (raw.contains("The value of type")) {
+            return "Type Mismatch: " + raw;
+        }
+
         if (raw.contains("token recognition error at:")) {
             return "Lexical Error: " + raw;
         }

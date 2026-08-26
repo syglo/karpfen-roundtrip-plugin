@@ -47,15 +47,6 @@
       </editor>
    </extension>
 
-   <!-- Sirius Componentization Definition -->
-   <extension point="org.eclipse.sirius.componentization">
-      <component
-            id="org.karpfen.roundtrip.plugin"
-            name="karpfen"
-            viewpointRegistryModel="description/karpfen.odesign">
-      </component>
-   </extension>
-
    <!-- Custom EMF File Extension Parsers -->
    <extension point="org.eclipse.emf.ecore.extension_parser">
       <parser

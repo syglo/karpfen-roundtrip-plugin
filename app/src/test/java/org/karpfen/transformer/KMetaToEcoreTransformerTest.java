@@ -54,7 +54,7 @@ public class KMetaToEcoreTransformerTest {
         EPackage ePackage = transformer.transform(metamodel, "robotdomain", "http://github/karpfen", "robotdomain");
         assertNotNull(ePackage);
         assertEquals("robotdomain", ePackage.getName());
-        assertEquals(3, ePackage.getEClassifiers().size());
+        assertEquals(3, ePackage.getEClassifiers().size(), "Point, Obstacle, Robot");
 
         // EClass check
         EClass robotClass = (EClass) ePackage.getEClassifier("Robot");

@@ -36,8 +36,10 @@ public class AcceleoSerializationTest {
         KarpfenResourceInitializer.init();
 
         Path base = Path.of("").toAbsolutePath();
-        kmetaFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmeta").normalize().toFile();
-        kmodelFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmodel").normalize().toFile();
+        kmetaFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmeta").normalize()
+                .toFile();
+        kmodelFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmodel").normalize()
+                .toFile();
 
         assertTrue(kmetaFile.exists(), "cleaning_robot.kmeta should exist: " + kmetaFile.getAbsolutePath());
         assertTrue(kmodelFile.exists(), "cleaning_robot.kmodel should exist: " + kmodelFile.getAbsolutePath());
@@ -48,12 +50,14 @@ public class AcceleoSerializationTest {
         String originalKMetaText = Files.readString(kmetaFile.toPath(), StandardCharsets.UTF_8);
 
         // text -> karpfen ast
-        Metamodel originalAST = KmetaDSLConverter.INSTANCE.parseKmetaString(originalKMetaText, Collections.emptyList());
+        Metamodel originalAST = KmetaDSLConverter.INSTANCE.parseKmetaString(originalKMetaText,
+                Collections.emptyList());
         assertEquals(6, originalAST.getTypes().size(), "Vector, TwoDObject, Obstacle, Wall, Robot, Room");
 
         // karpfen ast -> EMF
         KMetaToEcoreTransformer transformer = new KMetaToEcoreTransformer();
-        EPackage ePackage = transformer.transform(originalAST, "cleaning_robot", "http://github/karpfen/cleaning_robot",
+        EPackage ePackage = transformer.transform(originalAST, "cleaning_robot",
+                "http://github/karpfen/cleaning_robot",
                 "cleaning_robot");
 
         // EMF acceleo -> text
@@ -87,12 +91,14 @@ public class AcceleoSerializationTest {
         String originalKModelText = Files.readString(kmodelFile.toPath(), StandardCharsets.UTF_8);
 
         // text -> karpfen ast
-        Metamodel metaAST = KmetaDSLConverter.INSTANCE.parseKmetaString(originalKMetaText, Collections.emptyList());
+        Metamodel metaAST = KmetaDSLConverter.INSTANCE.parseKmetaString(originalKMetaText,
+                Collections.emptyList());
         Model originalModelAST = KmodelDSLConverter.INSTANCE.parseKmodelString(originalKModelText, metaAST);
 
         // karpfen ast -> EMF
         KMetaToEcoreTransformer metaTransformer = new KMetaToEcoreTransformer();
-        EPackage ePackage = metaTransformer.transform(metaAST, "cleaning_robot", "http://github/karpfen/cleaning_robot",
+        EPackage ePackage = metaTransformer.transform(metaAST, "cleaning_robot",
+                "http://github/karpfen/cleaning_robot",
                 "cleaning_robot");
 
         KModelToEcoreInstanceTransformer instanceTransformer = new KModelToEcoreInstanceTransformer();

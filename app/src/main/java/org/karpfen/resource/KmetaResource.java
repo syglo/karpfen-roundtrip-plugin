@@ -12,6 +12,7 @@ import org.eclipse.emf.ecore.EClassifier;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
+import org.karpfen.design.KarpfenLog;
 import org.karpfen.serializer.AcceleoKMetaSerializer;
 import org.karpfen.serializer.EcoreToKMetaManualSerializer;
 import org.karpfen.serializer.KMetaSerializer;
@@ -30,6 +31,7 @@ public class KmetaResource extends ResourceImpl {
 
     public KmetaResource(URI uri) {
         super(uri);
+        KarpfenResourceInitializer.init();
     }
 
     @Override
@@ -76,6 +78,7 @@ public class KmetaResource extends ResourceImpl {
             getContents().clear();
             getContents().add(ePackage);
 
+            EPackage.Registry.INSTANCE.put(ePackage.getNsURI(), ePackage);
             if (getResourceSet() != null) {
                 getResourceSet().getPackageRegistry().put(ePackage.getNsURI(), ePackage);
             }
@@ -88,10 +91,11 @@ public class KmetaResource extends ResourceImpl {
             int line = KarpfenProblemMarkerManager.findOffendingLine(t, content);
             String message = KarpfenProblemMarkerManager.formatUserMessage(t);
 
+            getErrors().clear();
             getErrors().add(new KarpfenDiagnostic(message, getURI().toString(), line, 0));
             KarpfenProblemMarkerManager.reportError(getURI(), content, t);
 
-            System.err.println("[Karpfen] Validation error in .kmeta: " + message);
+            KarpfenLog.warn("Validation error in .kmeta: " + message);
         }
     }
 
@@ -106,10 +110,20 @@ public class KmetaResource extends ResourceImpl {
             String formatted = KarpfenDslFormatter.formatKMeta(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
             outputStream.flush();
+
+            try {
+                this.parsedMetamodel = KmetaDSLConverter.INSTANCE.parseKmetaString(formatted, Collections.emptyList());
+            } catch (Throwable t) {
+                KarpfenLog.warn("Could not update in-memory parsedMetamodel after doSave: " + t.getMessage());
+            }
         }
     }
 
     public Metamodel getParsedMetamodel() {
         return parsedMetamodel;
+    }
+
+    public void setParsedMetamodel(Metamodel parsedMetamodel) {
+        this.parsedMetamodel = parsedMetamodel;
     }
 }

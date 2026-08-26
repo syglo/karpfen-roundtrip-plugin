@@ -1,9 +1,14 @@
 package org.karpfen.editor;
 
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.ui.editors.text.TextEditor;
-import org.eclipse.ui.IEditorInput;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.ui.IEditorInput;
+import org.eclipse.ui.IFileEditorInput;
+import org.eclipse.ui.editors.text.TextEditor;
 import org.karpfen.serializer.KarpfenDslFormatter;
 
 public class KarpfenEditor extends TextEditor {
@@ -36,7 +41,20 @@ public class KarpfenEditor extends TextEditor {
                 }
             }
         }
-        super.doSave(progressMonitor);
+        super.doSave(progressMonitor != null ? progressMonitor : new NullProgressMonitor());
+
+        // Refresh workspace container
+        if (getEditorInput() instanceof IFileEditorInput fileInput) {
+            IFile file = fileInput.getFile();
+            try {
+                file.refreshLocal(IResource.DEPTH_ZERO, progressMonitor);
+                IContainer parent = file.getParent();
+                if (parent != null) {
+                    parent.refreshLocal(IResource.DEPTH_ONE, progressMonitor);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     @Override

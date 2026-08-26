@@ -28,93 +28,79 @@ configurations.all {
 }
 
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
     application
-    id("dev.equo.p2deps") version "1.7.8"
 }
 
 repositories {
-    // Use Maven Central for resolving dependencies.
     mavenCentral()
     flatDir {
         dirs(rootProject.file("libs"))
     }
 }
 
-// https://help.eclipse.org/latest/index.jsp?nav=%2F5
+// Read eclipseHome from gradle.properties or environment variable
+val eclipseHomePath: String = project.findProperty("eclipseHome") as? String
+    ?: System.getenv("ECLIPSE_HOME")
+    ?: "D:/!Bachelor/Bachelor/eclipse-modeling-2026-06-R-win32-x86_64/eclipse"
 
-p2deps {
-    into("implementation") {
-        p2repo("https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/")
-        install("org.eclipse.sirius")
-        install("org.eclipse.sirius.diagram")
-        install("org.eclipse.sirius.diagram.formatdata")
-        install("org.eclipse.sirius.common.acceleo.aql")
+val eclipseHomeDirectory = file(eclipseHomePath)
+val eclipsePluginsDir = file("$eclipseHomePath/plugins")
 
-        p2repo("https://download.eclipse.org/acceleo/updates/releases/4.2/R202603201315/")
-        // Acceleo
-        install("org.eclipse.acceleo.aql")
-        install("org.eclipse.acceleo.aql.launcher")
-        install("org.eclipse.acceleo.aql.profiler")
-        install("org.eclipse.acceleo.aql.ls")
-        install("org.eclipse.acceleo.query")
-        install("org.eclipse.acceleo.query.ide")
-        install("org.eclipse.acceleo.query.ide.jdt")
-        install("org.eclipse.acceleo.query.sirius")
-        install("org.eclipse.acceleo.aql.ide")
-        install("org.eclipse.acceleo.aql.ide.ui")
-        install("org.eclipse.acceleo.query.ide.ui")
-    }
-}
+// Modeling, EMF, Sirius, UI and Runtime bundle prefixes
+val allowedPrefixes = listOf(
+    "org.eclipse.sirius",
+    "org.eclipse.emf",
+    "org.eclipse.acceleo",
+    "org.eclipse.gmf",
+    "org.eclipse.gef",
+    "org.eclipse.draw2d",
+    "org.eclipse.osgi",
+    "org.eclipse.equinox",
+    "org.eclipse.core",
+    "org.eclipse.ui",
+    "org.eclipse.jface",
+    "org.eclipse.swt",
+    "org.eclipse.text",
+    "com.google.guava",
+    "com.ibm.icu"
+)
+
+// Selects only relevant modeling bundles and deduplicates (picks 7.6.0 over 7.5.0)
+val eclipsePlugins: FileCollection = files(provider {
+    if (!eclipsePluginsDir.exists()) return@provider emptyList<File>()
+
+    val allJars = eclipsePluginsDir.listFiles { file ->
+        file.isFile && file.name.endsWith(".jar") && !file.name.contains(".source_")
+    } ?: emptyArray()
+
+    allJars
+        .filter { file -> allowedPrefixes.any { prefix -> file.name.startsWith(prefix) } }
+        .groupBy { file ->
+            // Extract bundle name before the version delimiter '_'
+            if (file.name.contains('_')) file.name.substringBeforeLast('_') else file.nameWithoutExtension
+        }
+        .values
+        .map { duplicateJars ->
+            // Pick highest version string
+            duplicateJars.maxByOrNull { it.name }!!
+        }
+})
 
 dependencies {
-    // swt import
-    implementation("org.eclipse.platform:org.eclipse.swt.${getSwtPlatform()}:3.131.0")
+    // Includes eclipse dependencies - runtime
+    compileOnly(eclipsePlugins)
 
-    // OSGI runtime, BundleActivator
-    implementation("org.eclipse.platform:org.eclipse.osgi:3.20.0")
-    implementation("org.eclipse.platform:org.eclipse.core.runtime:3.31.0")
-    implementation("org.eclipse.platform:org.eclipse.core.resources:3.20.0")
-    implementation("org.eclipse.platform:org.eclipse.ui.workbench:3.131.0")
-    implementation("org.eclipse.platform:org.eclipse.ui.workbench.texteditor:3.20.100")
-    implementation("org.eclipse.platform:org.eclipse.ui.editors:3.22.0")
-    implementation("org.eclipse.platform:org.eclipse.ui.ide:3.22.0")
-    implementation("org.eclipse.platform:org.eclipse.jface:3.31.0")
-    implementation("org.eclipse.platform:org.eclipse.jface.text:3.31.0")
-
-    // EMF standalone dependencies
-    // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.ecore
-    implementation("org.eclipse.emf:org.eclipse.emf.ecore:2.42.0")
-    // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.ecore.xmi
-    implementation("org.eclipse.emf:org.eclipse.emf.ecore.xmi:2.40.0")
-    // Source: https://mvnrepository.com/artifact/org.eclipse.emf/org.eclipse.emf.common
-    implementation("org.eclipse.emf:org.eclipse.emf.common:2.45.0") 
-
-    // Eclipse Sirius .odesign
-    //https://repo.eclipse.org/#browse/browse:sirius-maven2-snapshots:org%2Feclipse%2Fsirius%2Forg.eclipse.sirius%2F7.5.0-SNAPSHOT%2F7.5.0-20251114.144540-27
-    //implementation("sirius-deps:org.eclipse.sirius:7.5.0")
-    //implementation("sirius-deps:org.eclipse.sirius.diagram:7.5.0")               
-    //implementation("sirius-deps:org.eclipse.sirius.diagram.formatdata:7.5.0")
-    
-    // ANTLR runtime
-    // Source: https://mvnrepository.com/artifact/org.antlr/antlr4-runtime
+    // Third-party runtime dependencies bundled into the plugin FAT JAR
     implementation("org.antlr:antlr4-runtime:4.13.1")
-
-    // Local jar of karpfen dsl tools in libs/
-    //implementation(files(rootProject.file("libs/karpfen-dsl-tools.jar")))
-    //implementation(files("libs/karpfen-dsl-tools.jar"))
     implementation("karpfen:karpfen-dsl-tools:1.0")
     implementation("org.json:json:20240303")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
 
-    
-    // Use JUnit Jupiter for testing.
+    // Test dependencies
     testImplementation(libs.junit.jupiter)
-
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
-    // This dependency is used by the application.
-    implementation(libs.guava)
+    testImplementation(eclipsePlugins)
+    testImplementation(libs.guava)
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -163,21 +149,18 @@ tasks.named("compileJava") {
     dependsOn("setupKarpfenJar")
 }
 
-// Task for .odesign generatorion
+// Task for .odesign generation
 val generateOdesignTask = tasks.register<JavaExec>("generateOdesign") {
     group = "build"
     description = "Generates karpfen.odesign directly into src/main/resources/description/"
- 
-    classpath = sourceSets["main"].runtimeClasspath
+    classpath = sourceSets["main"].runtimeClasspath + sourceSets["main"].compileClasspath
     mainClass.set("org.karpfen.design.OdesignGenerator")
-    // Tmp change directories
     workingDir = projectDir
-
     dependsOn(tasks.named("compileJava"))
 }
 
 // Generate OSGi plugin metadata into META-INF/MANIFEST.MF inside the output JAR
-tasks.named<Jar>("jar") {
+val jarTask = tasks.named<Jar>("jar") {
     dependsOn(generateOdesignTask)
     archiveFileName.set("org.karpfen.roundtrip.plugin_1.0.0.jar")
 
@@ -197,32 +180,20 @@ tasks.named<Jar>("jar") {
         into("templates")
     }
 
-    // Embed third-party dependencies + Acceleo 4 libraries
-    // Exclude only the host Eclipse platform bundles provided by Eclipse Modeling Tools
-    val hostPlatformPrefixes = listOf(
-        "org.eclipse.osgi",
-        "org.eclipse.core.",
-        "org.eclipse.ui",
-        "org.eclipse.emf.",
-        "org.eclipse.sirius",
-        "org.eclipse.swt",
-        "org.eclipse.jface",
-        "org.eclipse.equinox"
-    )
-
-    // bundle all dependencies
-    // karpfen_tools, kotlin stdlib, antlr, json.
-    // exclude eclipse/emf/sirius, its already in Eclipse Modelling Tools (runtime)
+    // Bundle only runtime third-party dependencies (ANTLR, Kotlin, JSON, Karpfen Tools)
     from({
-        configurations.runtimeClasspath.get().filter { file ->
-            hostPlatformPrefixes.none { prefix -> file.name.startsWith(prefix) }
-        }.map { zipTree(it) }
+        configurations.runtimeClasspath.get().map { zipTree(it) }
     }) {
-        // exclude metas from thirdparties - osgi verification failures
-        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "META-INF/MANIFEST.MF", "META-INF/INDEX.LIST")
+        exclude(
+            "META-INF/*.SF",
+            "META-INF/*.DSA",
+            "META-INF/*.RSA",
+            "META-INF/MANIFEST.MF",
+            "META-INF/INDEX.LIST"
+        )
     }
 
-    // osgi manifest
+    // OSGi manifest definition
     manifest {
         attributes(
             mapOf(
@@ -246,21 +217,50 @@ tasks.named<Jar>("jar") {
                     "org.eclipse.jface.text",
                     "org.eclipse.emf.ecore",
                     "org.eclipse.emf.ecore.xmi",
+                    "org.eclipse.emf.common",
+                    "org.eclipse.emf.transaction",
+                    "org.eclipse.emf.workspace",
                     "org.eclipse.sirius",
                     "org.eclipse.sirius.diagram",
                     "org.eclipse.sirius.diagram.ui",
                     "org.eclipse.sirius.ui",
                     "org.eclipse.sirius.common.acceleo.aql",
-                    // acceleo
-                    //"org.eclipse.acceleo.query",
-                    //"org.eclipse.acceleo.query.ide",
-                    //"org.eclipse.acceleo.query.sirius",
-                    //"org.eclipse.acceleo.aql",
-                    //"org.eclipse.acceleo.aql.launcher"
-                    //"org.eclipse.elk.sdk",
+                    "org.eclipse.acceleo.query",
+                    "org.eclipse.acceleo.aql"
                 ).joinToString(","),
-                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource, org.karpfen.serializer, org.karpfen.editor",
+                "Export-Package" to "org.karpfen.transformer, org.karpfen.design, org.karpfen.resource, org.karpfen.serializer, org.karpfen.editor"
             )
         )
+    }
+}
+
+// Capture providers and file handles at configuration time
+val jarArchiveFile = jarTask.flatMap { it.archiveFile }
+
+tasks.register("eclipsereload") {
+    group = "application"
+    description = "Packages JAR, cleans OSGi bundle cache inside Eclipse folder DEV"
+    dependsOn(jarTask)
+
+    val eclipseDir = eclipseHomeDirectory
+    val jarFileProvider = jarArchiveFile
+
+    doLast {
+        val dropinsDir = File(eclipseDir, "dropins")
+        val osgiCacheDir = File(eclipseDir, "configuration/org.eclipse.osgi")
+
+        // Delete Eclipse OSGi runtime cache to force clean bundle resolution
+        if (osgiCacheDir.exists()) {
+            println("[eclipsereload] Removing OSGi cache: ${osgiCacheDir.absolutePath}")
+            osgiCacheDir.deleteRecursively()
+        }
+
+        // Deploy fresh plugin FAT JAR to dropins/
+        dropinsDir.mkdirs()
+        val builtJar = jarFileProvider.get().asFile
+        val targetDropin = File(dropinsDir, builtJar.name)
+
+        println("[eclipsereload] Deploying plugin JAR -> ${targetDropin.absolutePath}")
+        builtJar.copyTo(targetDropin, overwrite = true)
     }
 }

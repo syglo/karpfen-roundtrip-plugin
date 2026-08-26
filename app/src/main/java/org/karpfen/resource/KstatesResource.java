@@ -11,6 +11,7 @@ import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EcoreFactory;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
+import org.karpfen.design.KarpfenLog;
 
 import dsl.textual.KstatesDSLConverter;
 import states.StateMachine;
@@ -21,6 +22,7 @@ public class KstatesResource extends ResourceImpl {
 
     public KstatesResource(URI uri) {
         super(uri);
+        KarpfenResourceInitializer.init();
     }
 
     // T2D
@@ -43,24 +45,27 @@ public class KstatesResource extends ResourceImpl {
             statePackage.setNsURI("http://github/karpfen/states/" + smName);
             statePackage.setNsPrefix(smName);
 
-            // EClss
+            // EClass
             EClass smClass = factory.createEClass();
             smClass.setName("StateMachine_" + this.parsedStateMachine.getAttachedToClass());
 
             statePackage.getEClassifiers().add(smClass);
 
-            // TODO
-
             getContents().clear();
             getContents().add(statePackage);
+
+            KarpfenProblemMarkerManager.clearMarkers(getURI());
+
         } catch (Throwable t) {
             int line = KarpfenProblemMarkerManager.findOffendingLine(t, content);
             String message = KarpfenProblemMarkerManager.formatUserMessage(t);
 
+            getErrors().clear();
+            getContents().clear();
             getErrors().add(new KarpfenDiagnostic(message, getURI().toString(), line, 0));
             KarpfenProblemMarkerManager.reportError(getURI(), content, t);
 
-            System.err.println("[Karpfen] Validation error in .kstates: " + message);
+            KarpfenLog.warn("Validation error in .kstates: " + message);
         }
     }
 
