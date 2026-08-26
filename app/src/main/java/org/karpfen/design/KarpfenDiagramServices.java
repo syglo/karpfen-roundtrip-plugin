@@ -3,6 +3,8 @@ package org.karpfen.design;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import kmeta.KmetaLexer;
 import kmeta.KmetaParser;
@@ -14,6 +16,8 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
+import org.eclipse.emf.common.util.TreeIterator;
+import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
@@ -25,14 +29,24 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.ETypedElement;
 import org.eclipse.emf.ecore.EcoreFactory;
 import org.eclipse.emf.ecore.EcorePackage;
+import org.eclipse.emf.ecore.InternalEObject;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.util.EcoreUtil;
+import org.eclipse.sirius.diagram.DEdge;
+import org.eclipse.sirius.diagram.EdgeTarget;
 import org.eclipse.sirius.viewpoint.DSemanticDecorator;
 
 public class KarpfenDiagramServices {
 
     public static final String KARPFEN_URI = "https://github/karpfen/annotation";
     public static final String ID_FEATURE_NAME = "__id__";
+
+    private static final Map<EAttribute, EObject> ACTIVE_SLOT_TARGETS = Collections
+            .synchronizedMap(new WeakHashMap<>());
+    private static volatile EObject lastRenderedEObject = null;
+
+    private record SourceTargetPair(EObject source, EObject target) {
+    }
 
     // ! KMeta visual projections - UML class diagramm
 
@@ -288,6 +302,27 @@ public class KarpfenDiagramServices {
         return idStr + " : " + className;
     }
 
+    public List<EAttribute> getSchemaAttributes(EObject self) {
+        if (self == null)
+            return Collections.emptyList();
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return Collections.emptyList();
+        EClass eClass = resolveEClass(target);
+        if (eClass == null || eClass.eIsProxy())
+            return Collections.emptyList();
+
+        List<EAttribute> result = new ArrayList<>();
+        for (EAttribute attr : eClass.getEAllAttributes()) {
+            if (!ID_FEATURE_NAME.equals(attr.getName())) {
+                result.add(attr);
+                ACTIVE_SLOT_TARGETS.put(attr, target);
+                lastRenderedEObject = target;
+            }
+        }
+        return result;
+    }
+
     public List<EAttribute> getPopulatedAttributes(EObject self) {
         if (self == null)
             return Collections.emptyList();
@@ -307,8 +342,19 @@ public class KarpfenDiagramServices {
                 EStructuralFeature feature = target.eClass().getEStructuralFeature(attr.getName());
                 if (feature != null && target.eIsSet(feature)) {
                     result.add(attr);
+                    ACTIVE_SLOT_TARGETS.put(attr, target);
+                    lastRenderedEObject = target;
                 }
             } catch (Throwable ignored) {
+                try {
+                    EStructuralFeature feature = target.eClass().getEStructuralFeature(attr.getName());
+                    if (feature != null && target.eGet(feature) != null) {
+                        result.add(attr);
+                        ACTIVE_SLOT_TARGETS.put(attr, target);
+                        lastRenderedEObject = target;
+                    }
+                } catch (Throwable ignored2) {
+                }
             }
         }
         return result;
@@ -318,8 +364,15 @@ public class KarpfenDiagramServices {
         if (attr == null)
             return "";
         EObject target = resolveSemanticTarget(context);
+        if (target != null && !(target instanceof EAttribute)) {
+            ACTIVE_SLOT_TARGETS.put(attr, target);
+            lastRenderedEObject = target;
+        } else {
+            target = resolveSlotTargetInstance(attr);
+        }
+
         if (target == null)
-            return attr.getName() + " = ";
+            return attr.getName() + " = <unset>";
 
         String featName = attr.getName();
         if (featName == null)
@@ -335,22 +388,28 @@ public class KarpfenDiagramServices {
         }
 
         Object val = null;
+        boolean isSet = false;
         try {
             if (target.eIsSet(feature)) {
                 val = target.eGet(feature);
+                isSet = true;
             }
         } catch (Throwable t1) {
             try {
                 val = target.eGet(feature);
+                isSet = (val != null);
             } catch (Throwable ignored) {
             }
         }
 
-        if (val == null) {
-            return featName + " = ";
+        if (!isSet || val == null) {
+            return featName + " = <unset>";
         }
 
         if (feature.isMany() && val instanceof List<?> list) {
+            if (list.isEmpty()) {
+                return featName + " = []";
+            }
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < list.size(); i++) {
                 sb.append(featName).append(" = ").append(list.get(i));
@@ -366,7 +425,57 @@ public class KarpfenDiagramServices {
         return getKModelSlotLabel(attr, context);
     }
 
-    // ! KMeta ANTLR micro parser, input subsitution
+    public String getInstanceContainmentLabel(EObject self, EObject viewOrTarget) {
+        return resolveInstanceEdgeLabel(self, viewOrTarget, true);
+    }
+
+    public String getInstanceReferenceLabel(EObject self, EObject viewOrTarget) {
+        return resolveInstanceEdgeLabel(self, viewOrTarget, false);
+    }
+
+    public String resolveInstanceEdgeLabel(EObject self, EObject viewOrTarget, boolean isContainment) {
+        SourceTargetPair pair = resolveEndpoints(self, viewOrTarget);
+        EObject src = pair.source();
+        EObject tgt = pair.target();
+        if (src == null || tgt == null || src.eClass() == null) {
+            return isContainment ? "has" : "knows";
+        }
+
+        List<String> matchedNames = new ArrayList<>();
+
+        // Collect all scalar references linking src -> tgt
+        for (EReference ref : src.eClass().getEAllReferences()) {
+            if (ref.isContainment() == isContainment && !ref.isMany()) {
+                try {
+                    if (src.eIsSet(ref) && src.eGet(ref) == tgt) {
+                        matchedNames.add(ref.getName());
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        // Collect all list collection references containing tgt
+        for (EReference ref : src.eClass().getEAllReferences()) {
+            if (ref.isContainment() == isContainment && ref.isMany()) {
+                try {
+                    Object val = src.eGet(ref);
+                    if (val instanceof List<?> list && list.contains(tgt)) {
+                        matchedNames.add(ref.getName());
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+
+        if (!matchedNames.isEmpty()) {
+            return String.join(", ", matchedNames);
+        }
+
+        return isContainment ? "has" : "knows";
+    }
+
+    // ! KModel Direct Editing & Micro-Parsing
 
     public EObject editKModelObjectHeader(EObject self, String input) {
         KarpfenLog.trace("DirectEdit-KModel", "editKModelObjectHeader called with input=[" + input + "]");
@@ -423,6 +532,9 @@ public class KarpfenDiagramServices {
         KarpfenLog.trace("DirectEdit-KModel", "editKModelSlotValue called with attr="
                 + (attr != null ? attr.getName() : "null") + ", input=[" + input + "]");
         EObject target = resolveSemanticTarget(context);
+        if (target == null || target instanceof EAttribute) {
+            target = resolveSlotTargetInstance(attr);
+        }
         if (target != null && attr != null) {
             editKModelSlot(target, attr, input);
         } else {
@@ -441,6 +553,9 @@ public class KarpfenDiagramServices {
         if (container == null || attr == null || input == null || input.isBlank())
             return container;
         EObject target = resolveSemanticTarget(container);
+        if (target == null || target instanceof EAttribute) {
+            target = resolveSlotTargetInstance(attr);
+        }
         if (target == null) {
             KarpfenLog.warn("editKModelSlot: resolveSemanticTarget returned null for container=" + container);
             return container;
@@ -513,13 +628,23 @@ public class KarpfenDiagramServices {
             targetAttr = attr;
         }
 
+        EStructuralFeature actualFeat = target.eClass().getEStructuralFeature(targetAttr.getName());
+        if (actualFeat == null) {
+            actualFeat = targetAttr;
+        }
+
+        String cleanProp = propValue != null ? unquote(propValue).trim() : "";
+        if ("<unset>".equalsIgnoreCase(cleanProp) || "unset".equalsIgnoreCase(cleanProp)
+                || "<unset>".equalsIgnoreCase(raw) || "unset".equalsIgnoreCase(raw)
+                || cleanProp.isEmpty()) {
+            target.eUnset(actualFeat);
+            markTargetResourceDirty(target);
+            KarpfenLog.info("[DirectEdit-KModel] Unset feature " + actualFeat.getName() + " on " + target);
+            return target;
+        }
+
         try {
             Object converted = convertStringToValue(propValue, targetAttr.getEAttributeType());
-            EStructuralFeature actualFeat = target.eClass().getEStructuralFeature(targetAttr.getName());
-            if (actualFeat == null) {
-                actualFeat = targetAttr;
-            }
-
             if (actualFeat.isMany()) {
                 Object rawList = target.eGet(actualFeat);
                 if (rawList instanceof List<?> list) {
@@ -546,54 +671,107 @@ public class KarpfenDiagramServices {
         return editKModelSlot(container, attr, input);
     }
 
-    // KModel create operations palette
-
-    public EObject createNewKModelObject(EObject self, EObject container) {
-        EObject root = resolveSemanticTarget(container != null ? container : self);
-        if (root == null || root.eClass() == null || root.eClass().getEPackage() == null)
-            return root;
-
-        EPackage pkg = root.eClass().getEPackage();
-        EClass targetClass = null;
-        for (EClassifier classifier : pkg.getEClassifiers()) {
-            if (classifier instanceof EClass ec && !ec.isAbstract() && !ec.getName().equals(root.eClass().getName())) {
-                targetClass = ec;
-                break;
+    public EObject editInstanceEdge(EObject self, Object viewOrTarget, String input, boolean isContainment) {
+        EObject viewObj = null;
+        if (viewOrTarget instanceof List<?> list && !list.isEmpty()) {
+            Object first = list.get(0);
+            if (first instanceof EObject eo) {
+                viewObj = eo;
             }
-        }
-        if (targetClass == null) {
-            targetClass = root.eClass();
-        }
-
-        EObject newInstance = EcoreUtil.create(targetClass);
-        EStructuralFeature idFeat = targetClass.getEStructuralFeature(ID_FEATURE_NAME);
-        if (idFeat != null) {
-            String generatedId = targetClass.getName().toLowerCase() + "_" + (System.currentTimeMillis() % 1000);
-            newInstance.eSet(idFeat, generatedId);
+        } else if (viewOrTarget instanceof EObject eo) {
+            viewObj = eo;
         }
 
-        boolean attached = false;
-        for (EReference ref : root.eClass().getEAllContainments()) {
-            if (ref.getEReferenceType().isSuperTypeOf(targetClass)) {
-                if (ref.isMany()) {
-                    @SuppressWarnings("unchecked")
-                    List<EObject> list = (List<EObject>) root.eGet(ref);
-                    list.add(newInstance);
-                } else if (root.eGet(ref) == null) {
-                    root.eSet(ref, newInstance);
+        SourceTargetPair pair = resolveEndpoints(self, viewObj);
+        EObject src = pair.source();
+        EObject tgt = pair.target();
+        if (src == null || tgt == null || src.eClass() == null || tgt.eClass() == null || input == null)
+            return src;
+
+        String raw = input.trim();
+        List<String> targetRefNames = new ArrayList<>();
+        if (!raw.isBlank() && !"<unset>".equalsIgnoreCase(raw) && !"unset".equalsIgnoreCase(raw)) {
+            String[] parts = raw.split(",");
+            for (String part : parts) {
+                String cleaned = unquote(part.trim().replace("[ref]", "").replace("[list]", "").trim());
+                if (!cleaned.isBlank()) {
+                    targetRefNames.add(cleaned.toLowerCase());
                 }
-                attached = true;
-                break;
             }
         }
 
-        if (!attached && root.eResource() != null) {
-            root.eResource().getContents().add(newInstance);
+        // Validate that requested references exist AND are type-compatible with the
+        // target object (resolving proxies)
+        List<EReference> validTargetRefs = new ArrayList<>();
+        for (String requestedName : targetRefNames) {
+            for (EReference ref : src.eClass().getEAllReferences()) {
+                if (ref.isContainment() == isContainment && ref.getName().equalsIgnoreCase(requestedName)) {
+                    if (isReferenceTypeCompatible(ref, tgt, src)) {
+                        validTargetRefs.add(ref);
+                    } else {
+                        String expectedType = getEClassName(ref.getEType(), src);
+                        String actualType = getClassName(tgt);
+                        KarpfenLog.warn("Type mismatch on direct edit: Reference '" + ref.getName() + "' on "
+                                + getClassName(src) + " expects type " + expectedType
+                                + " but target is of type " + actualType);
+                    }
+                    break;
+                }
+            }
         }
 
-        markTargetResourceDirty(root);
-        KarpfenLog.info("[Palette-KModel] Created new instance of " + targetClass.getName() + " on " + root);
-        return newInstance;
+        // If user entered feature names but NONE of them are type-compatible, reject
+        // edit to prevent model corruption
+        if (!targetRefNames.isEmpty() && validTargetRefs.isEmpty()) {
+            KarpfenLog.warn("Direct-Edit rejected: None of the specified reference features " + targetRefNames
+                    + " are type-compatible with target " + getClassName(tgt));
+            return src;
+        }
+
+        boolean modified = false;
+
+        // Reconcile references matching isContainment
+        for (EReference ref : src.eClass().getEAllReferences()) {
+            if (ref.isContainment() == isContainment) {
+                boolean shouldContain = validTargetRefs.contains(ref);
+                if (ref.isMany()) {
+                    Object val = src.eGet(ref);
+                    if (val instanceof List<?> list) {
+                        @SuppressWarnings("unchecked")
+                        List<EObject> mList = (List<EObject>) list;
+                        if (shouldContain) {
+                            if (!mList.contains(tgt)) {
+                                mList.add(tgt);
+                                modified = true;
+                            }
+                        } else {
+                            if (mList.remove(tgt)) {
+                                modified = true;
+                            }
+                        }
+                    }
+                } else {
+                    if (shouldContain) {
+                        if (!src.eIsSet(ref) || src.eGet(ref) != tgt) {
+                            src.eSet(ref, tgt);
+                            modified = true;
+                        }
+                    } else {
+                        if (src.eIsSet(ref) && src.eGet(ref) == tgt) {
+                            src.eUnset(ref);
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (modified) {
+            markTargetResourceDirty(src);
+            KarpfenLog.info(
+                    "[DirectEdit-KModel] Reconciled edge " + src + " -> " + tgt + " with features: " + targetRefNames);
+        }
+        return src;
     }
 
     public EObject createInstanceLink(EObject source, EObject target, boolean isContainment) {
@@ -602,23 +780,125 @@ public class KarpfenDiagramServices {
         if (src == null || tgt == null || src.eClass() == null || tgt.eClass() == null)
             return src;
 
+        List<EReference> matchingRefs = new ArrayList<>();
         for (EReference ref : src.eClass().getEAllReferences()) {
-            if (ref.isContainment() == isContainment && ref.getEReferenceType().isSuperTypeOf(tgt.eClass())) {
-                if (ref.isMany()) {
-                    @SuppressWarnings("unchecked")
-                    List<EObject> list = (List<EObject>) src.eGet(ref);
-                    if (!list.contains(tgt)) {
-                        list.add(tgt);
-                    }
-                } else {
-                    src.eSet(ref, tgt);
-                }
-                markTargetResourceDirty(src);
-                KarpfenLog.info("[Palette-KModel] Linked " + src + " -> " + tgt + " via " + ref.getName());
+            if (ref.isContainment() == isContainment && isReferenceTypeCompatible(ref, tgt, src)) {
+                matchingRefs.add(ref);
+            }
+        }
+
+        if (matchingRefs.isEmpty()) {
+            KarpfenLog.warn("No compatible " + (isContainment ? "containment" : "reference") + " feature on "
+                    + getClassName(src) + " for " + getClassName(tgt));
+            return src;
+        }
+
+        // Smart precedence: Unset scalar, List reference, Overwrite scalar
+        EReference chosen = null;
+        for (EReference ref : matchingRefs) {
+            if (!ref.isMany() && !src.eIsSet(ref)) {
+                chosen = ref;
                 break;
             }
         }
+        if (chosen == null) {
+            for (EReference ref : matchingRefs) {
+                if (ref.isMany()) {
+                    chosen = ref;
+                    break;
+                }
+            }
+        }
+        if (chosen == null) {
+            chosen = matchingRefs.get(0);
+        }
+
+        if (chosen.isMany()) {
+            @SuppressWarnings("unchecked")
+            List<EObject> list = (List<EObject>) src.eGet(chosen);
+            if (!list.contains(tgt)) {
+                list.add(tgt);
+            }
+        } else {
+            src.eSet(chosen, tgt);
+        }
+
+        markTargetResourceDirty(src);
+        KarpfenLog.info("[Palette-KModel] Linked " + src + " -> " + tgt + " via " + chosen.getName());
         return src;
+    }
+
+    // KModel delete operations
+
+    public EObject deleteInstanceLink(EObject self, Object viewOrTarget, boolean isContainment) {
+        EObject viewObj = null;
+        if (viewOrTarget instanceof List<?> list && !list.isEmpty()) {
+            Object first = list.get(0);
+            if (first instanceof EObject eo) {
+                viewObj = eo;
+            }
+        } else if (viewOrTarget instanceof EObject eo) {
+            viewObj = eo;
+        }
+
+        SourceTargetPair pair = resolveEndpoints(self, viewObj);
+        EObject src = pair.source();
+        EObject tgt = pair.target();
+        if (src == null || tgt == null || src.eClass() == null) {
+            KarpfenLog.warn("deleteInstanceLink could not resolve endpoints: src=" + src + ", tgt=" + tgt);
+            return src;
+        }
+
+        boolean modified = false;
+        for (EReference ref : src.eClass().getEAllReferences()) {
+            if (ref.isContainment() == isContainment) {
+                if (ref.isMany()) {
+                    Object val = src.eGet(ref);
+                    if (val instanceof List<?> list && list.contains(tgt)) {
+                        list.remove(tgt);
+                        modified = true;
+                        KarpfenLog.info(
+                                "[Delete-KModel] Removed link " + src + " -> " + tgt + " from list " + ref.getName());
+                    }
+                } else if (src.eIsSet(ref) && src.eGet(ref) == tgt) {
+                    src.eUnset(ref);
+                    modified = true;
+                    KarpfenLog.info("[Delete-KModel] Unset link " + src + " -> " + tgt + " on scalar " + ref.getName());
+                }
+            }
+        }
+
+        if (modified) {
+            markTargetResourceDirty(src);
+        }
+        return src;
+    }
+
+    public EObject deleteKModelObject(EObject self) {
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return self;
+
+        EObject container = target.eContainer();
+        EReference contFeature = target.eContainmentFeature();
+
+        if (container != null && contFeature != null) {
+            if (contFeature.isMany()) {
+                @SuppressWarnings("unchecked")
+                List<EObject> list = (List<EObject>) container.eGet(contFeature);
+                list.remove(target);
+            } else {
+                container.eUnset(contFeature);
+            }
+            markTargetResourceDirty(container);
+        } else if (target.eResource() != null) {
+            target.eResource().getContents().remove(target);
+            markTargetResourceDirty(target);
+        }
+
+        EcoreUtil.delete(target, true);
+        KarpfenLog.info("[Delete-KModel] Deleted object " + target);
+        return container != null ? container : target;
     }
 
     // Hack to mark open files dirty, required for synchronization
@@ -636,7 +916,7 @@ public class KarpfenDiagramServices {
         }
     }
 
-    // ANTRL parser factories for input validations
+    // ANTLR parser factories for input validations
 
     private KmetaParser createKmetaParser(String snippet) {
         CharStream stream = CharStreams.fromString(snippet);
@@ -664,6 +944,121 @@ public class KarpfenDiagramServices {
 
     // Helpers
 
+    private String getEClassName(EClassifier classifier, EObject context) {
+        if (classifier == null)
+            return "EObject";
+        if (classifier.eIsProxy()) {
+            if (context != null) {
+                EObject resolved = EcoreUtil.resolve(classifier, context);
+                if (resolved instanceof EClassifier rc && !rc.eIsProxy() && rc.getName() != null) {
+                    return rc.getName();
+                }
+            }
+            if (classifier instanceof InternalEObject internalEObject) {
+                URI proxyUri = internalEObject.eProxyURI();
+                if (proxyUri != null && proxyUri.fragment() != null) {
+                    String frag = proxyUri.fragment();
+                    int lastSlash = frag.lastIndexOf('/');
+                    String name = (lastSlash >= 0) ? frag.substring(lastSlash + 1) : frag;
+                    name = name.replace("#", "").trim();
+                    if (!name.isEmpty()) {
+                        return name;
+                    }
+                }
+            }
+        }
+        String name = classifier.getName();
+        return (name != null && !name.isBlank()) ? name : "EObject";
+    }
+
+    private boolean isReferenceTypeCompatible(EReference ref, EObject tgt, EObject src) {
+        if (ref == null || tgt == null)
+            return false;
+        EClassifier expectedClassifier = ref.getEType();
+        if (expectedClassifier == null)
+            return true;
+
+        String expectedTypeName = getEClassName(expectedClassifier, src);
+        String actualTypeName = (tgt.eClass() != null) ? getEClassName(tgt.eClass(), tgt) : getClassName(tgt);
+
+        if ("EObject".equalsIgnoreCase(expectedTypeName) || "EObject".equalsIgnoreCase(actualTypeName)) {
+            return true;
+        }
+
+        if (expectedTypeName.equalsIgnoreCase(actualTypeName)) {
+            return true;
+        }
+
+        EClass expectedClass = resolveEClass(expectedClassifier);
+        EClass actualClass = resolveEClass(tgt.eClass());
+        if (expectedClass != null && actualClass != null && !expectedClass.eIsProxy() && !actualClass.eIsProxy()) {
+            if (expectedClass.isSuperTypeOf(actualClass)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private SourceTargetPair resolveEndpoints(EObject obj1, EObject obj2) {
+        EObject src = null;
+        EObject tgt = null;
+
+        DEdge edge = null;
+        if (obj1 instanceof DEdge d1) {
+            edge = d1;
+        } else if (obj2 instanceof DEdge d2) {
+            edge = d2;
+        }
+
+        if (edge != null) {
+            EdgeTarget sNode = edge.getSourceNode();
+            if (sNode instanceof DSemanticDecorator dec) {
+                src = resolveSemanticTarget(dec.getTarget());
+            }
+            EdgeTarget tNode = edge.getTargetNode();
+            if (tNode instanceof DSemanticDecorator dec) {
+                tgt = resolveSemanticTarget(dec.getTarget());
+            }
+            if (src == null && edge.getTarget() != null) {
+                src = resolveSemanticTarget(edge.getTarget());
+            }
+        }
+
+        if (src == null) {
+            src = resolveSemanticTarget(obj1);
+        }
+        if (tgt == null) {
+            tgt = resolveSemanticTarget(obj2);
+        }
+
+        return new SourceTargetPair(src, tgt);
+    }
+
+    private EObject resolveSlotTargetInstance(EAttribute attr) {
+        if (attr == null)
+            return lastRenderedEObject;
+        EObject target = ACTIVE_SLOT_TARGETS.get(attr);
+        if (target != null)
+            return target;
+
+        EClass containingClass = attr.getEContainingClass();
+        if (containingClass != null && containingClass.eResource() != null
+                && containingClass.eResource().getResourceSet() != null) {
+            for (Resource res : containingClass.eResource().getResourceSet().getResources()) {
+                TreeIterator<EObject> all = res.getAllContents();
+                while (all.hasNext()) {
+                    EObject obj = all.next();
+                    if (obj.eClass() != null && obj.eClass().getName() != null
+                            && obj.eClass().getName().equals(containingClass.getName())) {
+                        return obj;
+                    }
+                }
+            }
+        }
+        return lastRenderedEObject;
+    }
+
     private EObject resolveSemanticTarget(EObject context) {
         if (context instanceof DSemanticDecorator decorator) {
             EObject target = decorator.getTarget();
@@ -690,7 +1085,7 @@ public class KarpfenDiagramServices {
     private EClass resolveEClass(EObject obj) {
         if (obj == null)
             return null;
-        EClass eClass = obj.eClass();
+        EClass eClass = (obj instanceof EClass ec) ? ec : obj.eClass();
         if (eClass != null && eClass.eIsProxy()) {
             EObject resolved = EcoreUtil.resolve(eClass, obj);
             if (resolved instanceof EClass resolvedClass && !resolvedClass.eIsProxy()) {
@@ -701,8 +1096,16 @@ public class KarpfenDiagramServices {
     }
 
     private String getClassName(EObject obj) {
+        if (obj == null)
+            return "Object";
+        if (obj instanceof EClass ec) {
+            return getEClassName(ec, null);
+        }
         EClass eClass = resolveEClass(obj);
-        return (eClass != null && eClass.getName() != null) ? eClass.getName() : "Object";
+        if (eClass != null) {
+            return getEClassName(eClass, obj);
+        }
+        return "Object";
     }
 
     private void updateReferenceTargetType(EReference ref, String targetTypeName) {

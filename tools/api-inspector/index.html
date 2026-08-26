@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classpath API Explorer</title>
+    <style>
+        :root {
+            --bg-main: #0d1117;
+            --bg-side: #161b22;
+            --bg-card: #21262d;
+            --border: #30363d;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --tag-iface: #a371f7;
+            --tag-class: #3fb950;
+            --tag-abstract: #d29922;
+            --tag-enum: #f0883e;
+            --hover-bg: rgba(88, 166, 255, 0.12);
+            --active-bg: rgba(88, 166, 255, 0.22);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 380px;
+            min-width: 300px;
+            background: var(--bg-side);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .brand h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.2px;
+        }
+
+        .brand a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+        }
+
+        .brand a:hover {
+            color: var(--accent);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-top: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--bg-card);
+            color: var(--accent);
+        }
+
+        .stats-bar {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #nav-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 0;
+        }
+
+        /* Tree View Styling */
+        .tree-node {
+            user-select: none;
+        }
+
+        .tree-header {
+            display: flex;
+            align-items: center;
+            padding: 5px 12px 5px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-main);
+            font-family: monospace;
+            border-radius: 4px;
+            margin: 1px 4px;
+        }
+
+        .tree-header:hover {
+            background: var(--hover-bg);
+        }
+
+        .tree-arrow {
+            width: 16px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 10px;
+            margin-right: 4px;
+            transition: transform 0.15s ease;
+        }
+
+        .tree-arrow.open {
+            transform: rotate(90deg);
+        }
+
+        .tree-icon {
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        .tree-count {
+            margin-left: auto;
+            font-size: 10px;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+
+        .tree-children {
+            padding-left: 14px;
+            display: none;
+        }
+
+        .tree-children.open {
+            display: block;
+        }
+
+        /* Class Item Links */
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 14px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 13px;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: var(--hover-bg);
+            color: var(--accent-hover);
+        }
+
+        .nav-link.active {
+            background: var(--active-bg);
+            border-left-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .nav-link .name-col {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .nav-link .pkg-col {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-interface {
+            color: var(--tag-iface);
+            background: rgba(163, 113, 247, 0.15);
+            border: 1px solid rgba(163, 113, 247, 0.3);
+        }
+
+        .badge-class {
+            color: var(--tag-class);
+            background: rgba(63, 185, 80, 0.15);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+
+        .badge-abstract {
+            color: var(--tag-abstract);
+            background: rgba(210, 153, 34, 0.15);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+        }
+
+        .badge-enum {
+            color: var(--tag-enum);
+            background: rgba(240, 136, 62, 0.15);
+            border: 1px solid rgba(240, 136, 62, 0.3);
+        }
+
+        #content-frame {
+            flex: 1;
+            border: none;
+            height: 100%;
+            background: var(--bg-main);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <div class="side-header">
+            <div class="brand">
+                <h2>Classpath API Explorer</h2>
+                <a href="overview.html" target="contentFrame">Overview &rarr;</a>
+            </div>
+            <input type="text" id="search" class="search-box" placeholder="Search class or method..."
+                oninput="onSearch()" autofocus>
+            <div class="tab-bar">
+                <button class="tab-btn active" id="tab-tree" onclick="setTab('tree')">Package Tree</button>
+                <button class="tab-btn" id="tab-flat" onclick="setTab('flat')">All Classes (A-Z)</button>
+            </div>
+            <div class="stats-bar">
+                <span id="stats-total">Loading...</span>
+                <span id="stats-shown"></span>
+            </div>
+        </div>
+        <div id="nav-content"></div>
+    </div>
+    <iframe id="content-frame" name="contentFrame" src="overview.html"></iframe>
+
+    <script src="nav_data.js"></script>
+    <script>
+        let currentTab = 'tree';
+        const searchInput = document.getElementById('search');
+        const navContent = document.getElementById('nav-content');
+        const statsTotal = document.getElementById('stats-total');
+        const statsShown = document.getElementById('stats-shown');
+
+        statsTotal.textContent = `${NAV_DATA.length} Classes in Classpath`;
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-tree').classList.toggle('active', tab === 'tree');
+            document.getElementById('tab-flat').classList.toggle('active', tab === 'flat');
+            render();
+        }
+
+        function getBadge(kind) {
+            if (kind === 'interface') return `<span class="badge badge-interface">I</span>`;
+            if (kind === 'abstract class') return `<span class="badge badge-abstract">A</span>`;
+            if (kind === 'enum') return `<span class="badge badge-enum">E</span>`;
+            return `<span class="badge badge-class">C</span>`;
+        }
+
+        function navigateToClass(fileName) {
+            const iframe = document.getElementById('content-frame');
+            iframe.src = `classes/${fileName}`;
+            highlightActive(fileName);
+        }
+
+        function highlightActive(fileName) {
+            document.querySelectorAll('.nav-link').forEach(el => {
+                const isActive = el.getAttribute('data-file') === fileName;
+                el.classList.toggle('active', isActive);
+            });
+        }
+
+        function onSearch() {
+            render();
+        }
+
+        function render() {
+            const query = searchInput.value.toLowerCase().trim();
+            navContent.innerHTML = '';
+
+            if (currentTab === 'flat' || query.length > 0) {
+                renderFlatList(query);
+            } else {
+                renderPackageTree();
+            }
+        }
+
+        function renderFlatList(query) {
+            const filtered = NAV_DATA.filter(c => {
+                if (!query) return true;
+                return c.name.toLowerCase().includes(query) ||
+                    c.pkg.toLowerCase().includes(query) ||
+                    (c.methods && c.methods.some(m => m.toLowerCase().includes(query)));
+            });
+
+            statsShown.textContent = `${filtered.length} found`;
+
+            filtered.forEach(c => {
+                const a = document.createElement('a');
+                a.className = 'nav-link';
+                a.href = `classes/${c.path}`;
+                a.target = 'contentFrame';
+                a.setAttribute('data-file', c.path);
+                a.innerHTML = `
+                    <div class="name-col">
+                        <strong>${c.name}</strong>
+                        <span class="pkg-col">${c.pkg}</span>
+                    </div>
+                    <div>${getBadge(c.kind)}</div>
+                `;
+                a.onclick = () => highlightActive(c.path);
+                navContent.appendChild(a);
+            });
+        }
+
+        function buildPackageTree(packagesMap) {
+            const root = { name: "root", children: {}, classes: [] };
+            for (const pkgName in packagesMap) {
+                const parts = pkgName.split('.');
+                let current = root;
+                parts.forEach(part => {
+                    if (!current.children[part]) {
+                        current.children[part] = { name: part, children: {}, classes: [] };
+                    }
+                    current = current.children[part];
+                });
+                current.classes = packagesMap[pkgName];
+            }
+            return root;
+        }
+
+        function renderPackageTree() {
+            statsShown.textContent = `${PACKAGES.length} packages`;
+            const packagesMap = {};
+            NAV_DATA.forEach(c => {
+                if (!packagesMap[c.pkg]) packagesMap[c.pkg] = [];
+                packagesMap[c.pkg].push(c);
+            });
+
+            const treeRoot = buildPackageTree(packagesMap);
+
+            function countTotalClasses(node) {
+                let cnt = node.classes.length;
+                for (const k in node.children) {
+                    cnt += countTotalClasses(node.children[k]);
+                }
+                return cnt;
+            }
+
+            function renderNode(node, container, prefix) {
+                for (const key of Object.keys(node.children).sort()) {
+                    const childNode = node.children[key];
+                    const fullPkg = prefix ? `${prefix}.${key}` : key;
+                    const totalCnt = countTotalClasses(childNode);
+
+                    const nodeDiv = document.createElement('div');
+                    nodeDiv.className = 'tree-node';
+
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'tree-header';
+                    headerDiv.innerHTML = `
+                        <span class="tree-arrow">▶</span>
+                        <span class="tree-icon">📦</span>
+                        <span>${key}</span>
+                        <span class="tree-count">${totalCnt}</span>
+                    `;
+
+                    const childrenDiv = document.createElement('div');
+                    childrenDiv.className = 'tree-children';
+
+                    headerDiv.onclick = () => {
+                        const isOpen = childrenDiv.classList.toggle('open');
+                        headerDiv.querySelector('.tree-arrow').classList.toggle('open', isOpen);
+                    };
+
+                    nodeDiv.appendChild(headerDiv);
+                    nodeDiv.appendChild(childrenDiv);
+
+                    // Render sub-packages first
+                    renderNode(childNode, childrenDiv, fullPkg);
+
+                    // Render classes in this package
+                    if (childNode.classes.length > 0) {
+                        childNode.classes.sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+                            const a = document.createElement('a');
+                            a.className = 'nav-link';
+                            a.href = `classes/${c.path}`;
+                            a.target = 'contentFrame';
+                            a.setAttribute('data-file', c.path);
+                            a.innerHTML = `
+                                <div class="name-col">
+                                    <strong>${c.name}</strong>
+                                </div>
+                                <div>${getBadge(c.kind)}</div>
+                            `;
+                            a.onclick = (e) => {
+                                e.stopPropagation();
+                                highlightActive(c.path);
+                            };
+                            childrenDiv.appendChild(a);
+                        });
+                    }
+
+                    container.appendChild(nodeDiv);
+                }
+            }
+
+            renderNode(treeRoot, navContent, "");
+        }
+
+        render();
+    </script>
+</body>
+
+</html>

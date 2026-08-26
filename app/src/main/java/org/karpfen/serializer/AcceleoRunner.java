@@ -93,7 +93,7 @@ public class AcceleoRunner {
             // KMeta, KModel AQL services helpers
             ServiceUtils.registerServices(queryEnvironment,
                     ServiceUtils.getServices(queryEnvironment, AcceleoServices.class));
-            
+
             // Acceleo evaluator
             AcceleoEvaluator evaluator = new AcceleoEvaluator(queryEnvironment.getLookupEngine(), "\n");
             resolver.addLoader(new ModuleLoader(new AcceleoParser(), evaluator));
@@ -169,7 +169,7 @@ public class AcceleoRunner {
             AcceleoUtil.generate(
                     targetTemplate, variables, evaluator, queryEnvironment, strategy, targetURI, logURI,
                     new BasicMonitor());
-            
+
             // Runtime errors
             Diagnostic diagnostic = evaluator.getGenerationResult().getDiagnostic();
             if (diagnostic != null && diagnostic.getSeverity() == Diagnostic.ERROR) {
@@ -190,7 +190,7 @@ public class AcceleoRunner {
                     throw new IOException("Acceleo couldn't generate text files in dir: " + tempDir.toAbsolutePath());
                 }
             }
-            
+
             // Read generated acceleo and format it
             String rawGenerated = Files.readString(generatedFile.toPath(), StandardCharsets.UTF_8);
             if (outputFilename.endsWith(".kmeta")) {

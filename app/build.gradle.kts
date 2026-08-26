@@ -6,6 +6,16 @@
  */
 
 import org.gradle.internal.os.OperatingSystem
+import java.io.File
+import java.io.PrintStream
+import java.io.ByteArrayOutputStream
+import java.net.URLClassLoader
+import java.util.zip.ZipFile
+import java.lang.reflect.Modifier
+import java.lang.reflect.Method
+import java.lang.reflect.Field
+import java.util.ArrayList
+import java.util.HashMap
 
 fun getSwtPlatform(): String {
     val os = OperatingSystem.current()
@@ -29,6 +39,15 @@ configurations.all {
 
 plugins {
     application
+    `java-library`
+    eclipse
+}
+
+eclipse {
+    classpath {
+        isDownloadSources = true
+        isDownloadJavadoc = true
+    }
 }
 
 repositories {
@@ -86,9 +105,16 @@ val eclipsePlugins: FileCollection = files(provider {
         }
 })
 
+// IDE - https://www.eclipse.org/downloads/packages/release/2026-06/r/eclipse-modeling-tools
+// Only this deps needs to be installed inside Eclipse Modelling Tools (2026-06 R)
+// Help -> Install New Software, add following links and install everything (all checkboxes)
+// Acceleo 4 - https://download.eclipse.org/acceleo/updates/releases/4.2/R202603201315/
+// Sirius    - https://download.eclipse.org/sirius/updates/releases/7.5.0/2025-09/
 dependencies {
     // Includes eclipse dependencies - runtime
     compileOnly(eclipsePlugins)
+
+    implementation("org.vineflower:vineflower:1.12.0")
 
     // Third-party runtime dependencies bundled into the plugin FAT JAR
     implementation("org.antlr:antlr4-runtime:4.13.1")
@@ -262,5 +288,368 @@ tasks.register("eclipsereload") {
 
         println("[eclipsereload] Deploying plugin JAR -> ${targetDropin.absolutePath}")
         builtJar.copyTo(targetDropin, overwrite = true)
+    }
+}
+
+tasks.named<Javadoc>("javadoc") {
+    description = "Generates standard offline HTML Javadoc documentation."
+    isFailOnError = false
+    
+    // Include project source directories and generated ANTLR sources
+    source = fileTree("src/main/java") + fileTree("build/generated/sources")
+    classpath = configurations.compileClasspath.get()
+
+    (options as StandardJavadocDocletOptions).apply {
+        encoding = "UTF-8"
+        charSet = "UTF-8"
+        author(true)
+        version(true)
+        // Suppress doclint warnings on generated code
+        addStringOption("Xdoclint:none", "-quiet")
+    }
+}
+
+class DocMethod(
+    val returnType: String,
+    val name: String,
+    val params: String,
+    val exceptions: String,
+    val isStatic: Boolean
+)
+
+class DocField(
+    val type: String,
+    val name: String,
+    val isStatic: Boolean
+)
+
+class DocClass(
+    val simpleName: String,
+    val fullName: String,
+    val packageName: String,
+    val classBytes: ByteArray,
+    val jarName: String,
+    val declaration: String,
+    val kind: String,
+    val superClass: String?,
+    val interfaces: List<String>,
+    val fileName: String,
+    val fields: List<DocField>,
+    val methods: List<DocMethod>
+)
+
+fun sanitizeFileName(name: String): String = name.replace(Regex("[<>:\"/\\\\|?*]"), "_")
+
+fun escapeHtmlText(text: String): String = text
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
+
+fun decompileWithVineflower(classLoader: ClassLoader, simpleName: String, classBytes: ByteArray): String {
+    val tempDir = File(System.getProperty("java.io.tmpdir"), "vf_" + System.nanoTime())
+    tempDir.mkdirs()
+    val tempClass = File(tempDir, "${simpleName}.class")
+    val tempOut = File(tempDir, "out")
+    tempOut.mkdirs()
+
+    return try {
+        tempClass.writeBytes(classBytes)
+        val decompilerClass = classLoader.loadClass("org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler")
+        val mainMethod = decompilerClass.getMethod("main", Array<String>::class.java)
+
+        val oldOut = System.out
+        val oldErr = System.err
+        val nullPs = PrintStream(ByteArrayOutputStream())
+        try {
+            System.setOut(nullPs)
+            System.setErr(nullPs)
+            
+            // Cast 'args as Any' to pass String[] correctly into vararg Object[]
+            val args = arrayOf("-dgs=1", "-hdc=0", "-log=ERROR", tempClass.absolutePath, tempOut.absolutePath)
+            mainMethod.invoke(null, args as Any)
+        } finally {
+            System.setOut(oldOut)
+            System.setErr(oldErr)
+        }
+
+        // Recursively locate decompiled .java output
+        val javaFile = tempOut.walkTopDown().firstOrNull { it.isFile && it.name.endsWith(".java") }
+        val decompiled = javaFile?.readText(Charsets.UTF_8)?.trim()
+        if (!decompiled.isNullOrEmpty()) decompiled else "// Decompiled source unavailable."
+    } catch (t: Throwable) {
+        "// Decompilation via Vineflower failed: ${t.message ?: t.javaClass.simpleName}"
+    } finally {
+        tempDir.deleteRecursively()
+    }
+}
+
+// 16 minutes to decompile 10000 classes, so whitelist whats needed or generate full api docs once.
+tasks.register("inspectApis") {
+    group = "verification"
+    description = "Generates modern offline Javadoc-style HTML API documentation with Vineflower decompiled method bodies."
+    dependsOn(tasks.named("compileJava"))
+
+    notCompatibleWithConfigurationCache("Dynamically introspects Project and compileClasspath at execution time.")
+
+    doLast {
+        val templateDir = rootProject.file("tools/api-inspector")
+        val indexTemplateFile = File(templateDir, "index.html")
+        val overviewTemplateFile = File(templateDir, "overview-template.html")
+        val classTemplateFile = File(templateDir, "class-template.html")
+
+        if (!indexTemplateFile.exists() || !overviewTemplateFile.exists() || !classTemplateFile.exists()) {
+            throw GradleException("Inspector templates not found in ${templateDir.absolutePath}. Ensure index.html, overview-template.html, and class-template.html exist.")
+        }
+
+        val reportDir = layout.buildDirectory.dir("reports/api-docs").get().asFile
+        reportDir.mkdirs()
+        val classesDir = File(reportDir, "classes")
+        classesDir.mkdirs()
+
+        val indexTemplate = indexTemplateFile.readText(Charsets.UTF_8)
+        val overviewTemplate = overviewTemplateFile.readText(Charsets.UTF_8)
+        val classTemplate = classTemplateFile.readText(Charsets.UTF_8)
+
+        val classpathFiles = configurations.getByName("compileClasspath").files
+            .filter { it.name.endsWith(".jar") || it.isDirectory }
+        val urls = classpathFiles.map { it.toURI().toURL() }.toTypedArray()
+        val classLoader = URLClassLoader(urls, ClassLoader.getPlatformClassLoader())
+
+        val defaultWhitelist = listOf(
+            "org.eclipse.sirius",
+            "org.eclipse.emf",
+            "org.eclipse.acceleo",
+            //"org.eclipse.xtext",
+            "org.antlr.v4",
+            "org.karpfen",
+            "kmeta",
+            "kmodel"
+        )
+
+        val processedClasses = ArrayList<DocClass>()
+        var totalJarsScanned = 0
+
+        for (cpFile in classpathFiles) {
+            if (cpFile.isFile && cpFile.name.endsWith(".jar")) {
+                totalJarsScanned++
+                try {
+                    ZipFile(cpFile).use { zip ->
+                        val entries = zip.entries()
+                        for (entry in entries.asSequence()) {
+                            val entryName = entry.name
+                            if (entryName.endsWith(".class") && !entryName.contains('$') && !entryName.startsWith("module-info")) {
+                                val className = entryName.replace("/", ".").removeSuffix(".class")
+                                if (defaultWhitelist.any { className.startsWith(it) }) {
+                                    try {
+                                        val clazz = classLoader.loadClass(className)
+                                        if (Modifier.isPublic(clazz.modifiers)) {
+                                            val pkg = if (className.contains('.')) className.substringBeforeLast('.') else "(default)"
+                                            val simpleName = clazz.simpleName
+
+                                            val kind = when {
+                                                clazz.isInterface -> "interface"
+                                                clazz.isEnum -> "enum"
+                                                Modifier.isAbstract(clazz.modifiers) -> "abstract class"
+                                                else -> "class"
+                                            }
+
+                                            val superName = clazz.superclass?.simpleName?.takeIf { it != "Object" }
+                                            val ifaces = clazz.interfaces.map { it.simpleName }
+
+                                            val extendsStr = if (superName != null) " extends $superName" else ""
+                                            val implementsStr = if (ifaces.isNotEmpty()) " implements ${ifaces.joinToString(", ")}" else ""
+                                            val decl = Modifier.toString(clazz.modifiers) + " " + kind + " " + simpleName + extendsStr + implementsStr
+
+                                            // Safe Fields Extraction
+                                            val fields = ArrayList<DocField>()
+                                            try {
+                                                for (f in clazz.fields) {
+                                                    if (Modifier.isPublic(f.modifiers)) {
+                                                        fields.add(DocField(f.type.simpleName, f.name, Modifier.isStatic(f.modifiers)))
+                                                    }
+                                                }
+                                            } catch (_: Throwable) {}
+                                            fields.sortBy { it.name }
+
+                                            // Safe Methods Extraction
+                                            val methods = ArrayList<DocMethod>()
+                                            try {
+                                                for (m in clazz.methods) {
+                                                    if (m.declaringClass != Any::class.java && Modifier.isPublic(m.modifiers)) {
+                                                        val params = try {
+                                                            m.parameterTypes.joinToString(", ") { it.simpleName }
+                                                        } catch (_: Throwable) { "..." }
+                                                        val ret = try { m.returnType.simpleName } catch (_: Throwable) { "Object" }
+                                                        val ex = try {
+                                                            if (m.exceptionTypes.isNotEmpty()) "throws " + m.exceptionTypes.joinToString(", ") { it.simpleName } else ""
+                                                        } catch (_: Throwable) { "" }
+
+                                                        methods.add(DocMethod(ret, m.name, params, ex, Modifier.isStatic(m.modifiers)))
+                                                    }
+                                                }
+                                            } catch (_: Throwable) {}
+                                            methods.sortBy { it.name }
+
+                                            val safeFileName = sanitizeFileName("${pkg}.${simpleName}.html")
+                                            val bytes = zip.getInputStream(entry).readBytes()
+
+                                            processedClasses.add(
+                                                DocClass(
+                                                    simpleName = simpleName,
+                                                    fullName = clazz.name,
+                                                    packageName = pkg,
+                                                    classBytes = bytes,
+                                                    jarName = cpFile.name,
+                                                    declaration = decl,
+                                                    kind = kind,
+                                                    superClass = superName,
+                                                    interfaces = ifaces,
+                                                    fileName = safeFileName,
+                                                    fields = fields,
+                                                    methods = methods
+                                                )
+                                            )
+                                        }
+                                    } catch (_: Throwable) {}
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
+        processedClasses.sortBy { it.fullName }
+        val packagesMap = HashMap<String, ArrayList<DocClass>>()
+        for (c in processedClasses) {
+            val list = packagesMap.getOrPut(c.packageName) { ArrayList() }
+            list.add(c)
+        }
+        val sortedPackages = packagesMap.keys.sorted()
+
+        // Render Individual Class HTML Pages with Vineflower Decompilation
+        for (c in processedClasses) {
+            val classFile = File(classesDir, c.fileName)
+
+            val fieldsSection = if (c.fields.isNotEmpty()) {
+                val sbFields = StringBuilder()
+                sbFields.append("<div class='section-title'><span>Fields</span><span class='count-pill'>")
+                    .append(c.fields.size).append("</span></div>")
+                for (f in c.fields) {
+                    val staticTag = if (f.isStatic) "<span class='static-tag'>static </span>" else ""
+                    sbFields.append("<div class='member-card'>")
+                        .append(staticTag)
+                        .append("<span class='ret-type'>").append(escapeHtmlText(f.type)).append("</span> ")
+                        .append("<span class='field-name'>").append(escapeHtmlText(f.name)).append("</span></div>")
+                }
+                sbFields.toString()
+            } else ""
+
+            val methodsList = if (c.methods.isNotEmpty()) {
+                val sbMethods = StringBuilder()
+                for (m in c.methods) {
+                    val staticTag = if (m.isStatic) "<span class='static-tag'>static </span>" else ""
+                    val throwsTag = if (m.exceptions.isNotEmpty()) "<span class='throws-clause'>" + escapeHtmlText(m.exceptions) + "</span>" else ""
+                    sbMethods.append("<div class='member-card'>+ ")
+                        .append(staticTag)
+                        .append("<span class='ret-type'>").append(escapeHtmlText(m.returnType)).append("</span> ")
+                        .append("<span class='member-name'>").append(escapeHtmlText(m.name)).append("</span>")
+                        .append("(<span class='params'>").append(escapeHtmlText(m.params)).append("</span>)")
+                        .append(throwsTag)
+                        .append("</div>")
+                }
+                sbMethods.toString()
+            } else "<div class='empty'>No public methods</div>"
+
+            val superclassRow = if (c.superClass != null) {
+                "<div class='hierarchy-row'><strong>Extends:</strong> <span>${escapeHtmlText(c.superClass)}</span></div>"
+            } else ""
+
+            val interfacesRow = if (c.interfaces.isNotEmpty()) {
+                "<div class='hierarchy-row'><strong>Implements:</strong> <span>${escapeHtmlText(c.interfaces.joinToString(", "))}</span></div>"
+            } else ""
+
+            val decompiledSource = decompileWithVineflower(classLoader, c.simpleName, c.classBytes)
+
+            val html = classTemplate
+                .replace("{{CLASS_NAME}}", escapeHtmlText(c.simpleName))
+                .replace("{{PACKAGE_NAME}}", escapeHtmlText(c.packageName))
+                .replace("{{DECLARATION}}", escapeHtmlText(c.declaration))
+                .replace("{{SUPERCLASS_ROW}}", superclassRow)
+                .replace("{{INTERFACES_ROW}}", interfacesRow)
+                .replace("{{JAR_NAME}}", escapeHtmlText(c.jarName))
+                .replace("{{KIND}}", escapeHtmlText(c.kind))
+                .replace("{{FIELDS_SECTION}}", fieldsSection)
+                .replace("{{METHOD_COUNT}}", c.methods.size.toString())
+                .replace("{{METHODS_LIST}}", methodsList)
+                .replace("{{DECOMPILED_CODE}}", escapeHtmlText(decompiledSource))
+
+            classFile.writeText(html, Charsets.UTF_8)
+        }
+
+        // Render Overview HTML
+        val totalInterfaces = processedClasses.count { it.kind == "interface" }
+        val sbRows = StringBuilder()
+        for (pkg in sortedPackages) {
+            val list = packagesMap[pkg] ?: emptyList<DocClass>()
+            val ifacesCount = list.count { it.kind == "interface" }
+            val classCount = list.size - ifacesCount
+
+            sbRows.append("<tr><td><code>")
+                .append(escapeHtmlText(pkg))
+                .append("</code></td><td>")
+                .append(classCount)
+                .append("</td><td>")
+                .append(ifacesCount)
+                .append("</td><td><strong>")
+                .append(list.size)
+                .append("</strong></td></tr>")
+        }
+
+        val overviewHtml = overviewTemplate
+            .replace("{{TOTAL_CLASSES}}", processedClasses.size.toString())
+            .replace("{{TOTAL_PACKAGES}}", sortedPackages.size.toString())
+            .replace("{{TOTAL_INTERFACES}}", totalInterfaces.toString())
+            .replace("{{TOTAL_JARS}}", totalJarsScanned.toString())
+            .replace("{{PACKAGE_ROWS}}", sbRows.toString())
+
+        File(reportDir, "overview.html").writeText(overviewHtml, Charsets.UTF_8)
+
+        // Render Navigation Data & Index HTML
+        val sbNav = StringBuilder()
+        sbNav.append("const NAV_DATA = [")
+        for (i in 0 until processedClasses.size) {
+            val c = processedClasses[i]
+            val methodNames = c.methods.take(20).joinToString("\",\"") { escapeHtmlText(it.name) }
+            val methodsJson = if (methodNames.isNotEmpty()) "[\"$methodNames\"]" else "[]"
+
+            sbNav.append("{\"name\":\"")
+                .append(escapeHtmlText(c.simpleName))
+                .append("\",\"pkg\":\"")
+                .append(escapeHtmlText(c.packageName))
+                .append("\",\"kind\":\"")
+                .append(escapeHtmlText(c.kind))
+                .append("\",\"path\":\"")
+                .append(c.fileName)
+                .append("\",\"methods\":")
+                .append(methodsJson)
+                .append("}")
+            if (i < processedClasses.size - 1) sbNav.append(",")
+        }
+        sbNav.append("];\nconst PACKAGES = [")
+        for (i in 0 until sortedPackages.size) {
+            val pkg = sortedPackages[i]
+            sbNav.append("\"").append(escapeHtmlText(pkg)).append("\"")
+            if (i < sortedPackages.size - 1) sbNav.append(",")
+        }
+        sbNav.append("];")
+
+        File(reportDir, "nav_data.js").writeText(sbNav.toString(), Charsets.UTF_8)
+        File(reportDir, "index.html").writeText(indexTemplate, Charsets.UTF_8)
+
+        println(">> Vineflower API Documentation Generated Successfully!")
+        println(">> Classes Decompiled: ${processedClasses.size} across ${sortedPackages.size} packages")
+        println(">> Location: ${File(reportDir, "index.html").absolutePath}")
     }
 }

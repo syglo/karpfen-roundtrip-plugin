@@ -32,6 +32,7 @@ import org.eclipse.sirius.diagram.description.style.NodeStyleDescription;
 import org.eclipse.sirius.diagram.description.style.StyleFactory;
 import org.eclipse.sirius.diagram.description.style.StylePackage;
 import org.eclipse.sirius.diagram.description.tool.ContainerCreationDescription;
+import org.eclipse.sirius.diagram.description.tool.DeleteElementDescription;
 import org.eclipse.sirius.diagram.description.tool.DirectEditLabel;
 import org.eclipse.sirius.diagram.description.tool.EdgeCreationDescription;
 import org.eclipse.sirius.diagram.description.tool.NodeCreationDescription;
@@ -44,6 +45,7 @@ import org.eclipse.sirius.viewpoint.description.Viewpoint;
 import org.eclipse.sirius.viewpoint.description.tool.ChangeContext;
 import org.eclipse.sirius.viewpoint.description.tool.CreateInstance;
 import org.eclipse.sirius.viewpoint.description.tool.EditMaskVariables;
+import org.eclipse.sirius.viewpoint.description.tool.ElementDeleteVariable;
 import org.eclipse.sirius.viewpoint.description.tool.InitEdgeCreationOperation;
 import org.eclipse.sirius.viewpoint.description.tool.InitialNodeCreationOperation;
 import org.eclipse.sirius.viewpoint.description.tool.InitialOperation;
@@ -159,7 +161,7 @@ public class OdesignGenerator {
 
         NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
         attrStyle.setLabelExpression("aql:self.getKMetaAttributeLabel()");
-        attrStyle.setShowIcon(false);
+        attrStyle.setShowIcon(true);
         attrStyle.setLabelAlignment(LabelAlignment.LEFT);
         attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
         attrStyle.setBorderSizeComputationExpression("0");
@@ -187,7 +189,7 @@ public class OdesignGenerator {
         CenterLabelStyleDescription kmetaHasLabelStyle = StyleFactory.eINSTANCE
                 .createCenterLabelStyleDescription();
         kmetaHasLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
-        kmetaHasLabelStyle.setShowIcon(false);
+        kmetaHasLabelStyle.setShowIcon(true);
         hasEdgeStyle.setCenterLabelStyleDescription(kmetaHasLabelStyle);
         kmetaHasEdge.setStyle(hasEdgeStyle);
         kmetaDefaultLayer.getEdgeMappings().add(kmetaHasEdge);
@@ -211,7 +213,7 @@ public class OdesignGenerator {
         CenterLabelStyleDescription kmetaKnowsLabelStyle = StyleFactory.eINSTANCE
                 .createCenterLabelStyleDescription();
         kmetaKnowsLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
-        kmetaKnowsLabelStyle.setShowIcon(false);
+        kmetaKnowsLabelStyle.setShowIcon(true);
         knowsEdgeStyle.setCenterLabelStyleDescription(kmetaKnowsLabelStyle);
         kmetaKnowsEdge.setStyle(knowsEdgeStyle);
         kmetaDefaultLayer.getEdgeMappings().add(kmetaKnowsEdge);
@@ -249,11 +251,11 @@ public class OdesignGenerator {
         eObjectNode.setStyle(objStyle);
         kmodelDefaultLayer.getContainerMappings().add(eObjectNode);
 
-        // Slot Subnode Mapping: uses (view) context to resolve parent dynamic EObject
+        // Slot Subnode Mapping: displays all schema attributes with value or <unset>
         NodeMapping slotNode = DescriptionFactory.eINSTANCE.createNodeMapping();
         slotNode.setName("EAttributeSlotNode");
         slotNode.setDomainClass("ecore.EAttribute");
-        slotNode.setSemanticCandidatesExpression("aql:self.getPopulatedAttributes()");
+        slotNode.setSemanticCandidatesExpression("aql:self.getSchemaAttributes()");
 
         NodeStyleDescription slotStyle = StyleFactory.eINSTANCE.createSquareDescription();
         slotStyle.setLabelExpression("aql:self.getKModelSlotLabel(view)");
@@ -265,7 +267,7 @@ public class OdesignGenerator {
         slotNode.setStyle(slotStyle);
         eObjectNode.getSubNodeMappings().add(slotNode);
 
-        // Edge has
+        // Edge has - Containment link with feature name label
         EdgeMapping instanceHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
         instanceHasEdge.setName("InstanceContainmentEdge");
         instanceHasEdge.setUseDomainElement(false);
@@ -278,10 +280,14 @@ public class OdesignGenerator {
         instanceHasStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
         instanceHasStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         instanceHasStyle.setSizeComputationExpression("1");
+        CenterLabelStyleDescription instanceHasLabelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        instanceHasLabelStyle.setLabelExpression("aql:self.getInstanceContainmentLabel(view)");
+        instanceHasLabelStyle.setShowIcon(false);
+        instanceHasStyle.setCenterLabelStyleDescription(instanceHasLabelStyle);
         instanceHasEdge.setStyle(instanceHasStyle);
         kmodelDefaultLayer.getEdgeMappings().add(instanceHasEdge);
 
-        // Edge knows
+        // Edge knows - Reference link with feature name label
         EdgeMapping instanceKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
         instanceKnowsEdge.setName("InstanceReferenceEdge");
         instanceKnowsEdge.setUseDomainElement(false);
@@ -293,6 +299,11 @@ public class OdesignGenerator {
         instanceKnowsStyle.setLineStyle(LineStyle.DASH_LITERAL);
         instanceKnowsStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         instanceKnowsStyle.setSizeComputationExpression("1");
+        CenterLabelStyleDescription instanceKnowsLabelStyle = StyleFactory.eINSTANCE
+                .createCenterLabelStyleDescription();
+        instanceKnowsLabelStyle.setLabelExpression("aql:self.getInstanceReferenceLabel(view)");
+        instanceKnowsLabelStyle.setShowIcon(false);
+        instanceKnowsStyle.setCenterLabelStyleDescription(instanceKnowsLabelStyle);
         instanceKnowsEdge.setStyle(instanceKnowsStyle);
         kmodelDefaultLayer.getEdgeMappings().add(instanceKnowsEdge);
 
@@ -420,14 +431,11 @@ public class OdesignGenerator {
         defaultLayer.getToolSections().add(propSection);
 
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString",
-                        1));
+                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString", 1));
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble",
-                        1));
+                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble", 1));
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean",
-                        1));
+                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean", 1));
         propSection.getOwnedTools()
                 .add(createPropertyTool(attributeNode, "List Property", "items", "ecore::EString", -1));
 
@@ -449,7 +457,7 @@ public class OdesignGenerator {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
-        // Direct Edit Section
+        // Direct Edit & Management Section
         ToolSection modelSection = dtf.createToolSection();
         modelSection.setName("ModelSection");
         modelSection.setLabel("Model Operations");
@@ -477,40 +485,86 @@ public class OdesignGenerator {
         slotNode.setLabelDirectEdit(editSlot);
         modelSection.getOwnedTools().add(editSlot);
 
-        // Object Creation Palette Section
-        ToolSection creationSection = dtf.createToolSection();
-        creationSection.setName("ObjectsSection");
-        creationSection.setLabel("Objects");
-        defaultLayer.getToolSections().add(creationSection);
+        // Edge direct-edit tools passing 'view' (the DEdge instance)
+        DirectEditLabel editHasEdge = dtf.createDirectEditLabel();
+        editHasEdge.setName("EditInstanceHasEdge");
+        applyDirectEditMask(editHasEdge, vtf);
+        InitialOperation editHasEdgeOp = vtf.createInitialOperation();
+        ChangeContext editHasEdgeCtx = vtf.createChangeContext();
+        editHasEdgeCtx.setBrowseExpression("aql:self.editInstanceEdge(view, arg0, true)");
+        editHasEdgeOp.setFirstModelOperations(editHasEdgeCtx);
+        editHasEdge.setInitialOperation(editHasEdgeOp);
+        instanceHasEdge.setLabelDirectEdit(editHasEdge);
+        modelSection.getOwnedTools().add(editHasEdge);
 
-        ContainerCreationDescription createObjectTool = dtf.createContainerCreationDescription();
-        createObjectTool.setName("CreateObjectTool");
-        createObjectTool.setLabel("New Object Instance");
-        createObjectTool.getContainerMappings().add(eObjectNode);
+        DirectEditLabel editKnowsEdge = dtf.createDirectEditLabel();
+        editKnowsEdge.setName("EditInstanceKnowsEdge");
+        applyDirectEditMask(editKnowsEdge, vtf);
+        InitialOperation editKnowsEdgeOp = vtf.createInitialOperation();
+        ChangeContext editKnowsEdgeCtx = vtf.createChangeContext();
+        editKnowsEdgeCtx.setBrowseExpression("aql:self.editInstanceEdge(view, arg0, false)");
+        editKnowsEdgeOp.setFirstModelOperations(editKnowsEdgeCtx);
+        editKnowsEdge.setInitialOperation(editKnowsEdgeOp);
+        instanceKnowsEdge.setLabelDirectEdit(editKnowsEdge);
+        modelSection.getOwnedTools().add(editKnowsEdge);
 
-        InitialNodeCreationOperation createObjOp = vtf.createInitialNodeCreationOperation();
-        ChangeContext createObjCtx = vtf.createChangeContext();
-        createObjCtx.setBrowseExpression("aql:self.createNewKModelObject(container)");
-        createObjOp.setFirstModelOperations(createObjCtx);
-        createObjectTool.setInitialOperation(createObjOp);
-        creationSection.getOwnedTools().add(createObjectTool);
+        // Deletion tools (Slots are managed via <unset> direct-edit)
+        DeleteElementDescription delObject = dtf.createDeleteElementDescription();
+        delObject.setName("DeleteObjectTool");
+        ElementDeleteVariable delObjElem = vtf.createElementDeleteVariable();
+        delObjElem.setName("element");
+        delObject.setElement(delObjElem);
+        ElementDeleteVariable delObjElemView = vtf.createElementDeleteVariable();
+        delObjElemView.setName("elementView");
+        delObject.setElementView(delObjElemView);
+
+        InitialOperation delObjOp = vtf.createInitialOperation();
+        ChangeContext delObjCtx = vtf.createChangeContext();
+        delObjCtx.setBrowseExpression("aql:self.deleteKModelObject()");
+        delObjOp.setFirstModelOperations(delObjCtx);
+        delObject.setInitialOperation(delObjOp);
+        eObjectNode.setDeletionDescription(delObject);
+        modelSection.getOwnedTools().add(delObject);
+
+        DeleteElementDescription delHasLink = dtf.createDeleteElementDescription();
+        delHasLink.setName("DeleteHasLinkTool");
+        ElementDeleteVariable delHasElem = vtf.createElementDeleteVariable();
+        delHasElem.setName("element");
+        delHasLink.setElement(delHasElem);
+        ElementDeleteVariable delHasElemView = vtf.createElementDeleteVariable();
+        delHasElemView.setName("elementView");
+        delHasLink.setElementView(delHasElemView);
+
+        InitialOperation delHasLinkOp = vtf.createInitialOperation();
+        ChangeContext delHasLinkCtx = vtf.createChangeContext();
+        delHasLinkCtx.setBrowseExpression("aql:self.deleteInstanceLink(elementView, true)");
+        delHasLinkOp.setFirstModelOperations(delHasLinkCtx);
+        delHasLink.setInitialOperation(delHasLinkOp);
+        instanceHasEdge.setDeletionDescription(delHasLink);
+        modelSection.getOwnedTools().add(delHasLink);
+
+        DeleteElementDescription delKnowsLink = dtf.createDeleteElementDescription();
+        delKnowsLink.setName("DeleteKnowsLinkTool");
+        ElementDeleteVariable delKnowsElem = vtf.createElementDeleteVariable();
+        delKnowsElem.setName("element");
+        delKnowsLink.setElement(delKnowsElem);
+        ElementDeleteVariable delKnowsElemView = vtf.createElementDeleteVariable();
+        delKnowsElemView.setName("elementView");
+        delKnowsLink.setElementView(delKnowsElemView);
+
+        InitialOperation delKnowsLinkOp = vtf.createInitialOperation();
+        ChangeContext delKnowsLinkCtx = vtf.createChangeContext();
+        delKnowsLinkCtx.setBrowseExpression("aql:self.deleteInstanceLink(elementView, false)");
+        delKnowsLinkOp.setFirstModelOperations(delKnowsLinkCtx);
+        delKnowsLink.setInitialOperation(delKnowsLinkOp);
+        instanceKnowsEdge.setDeletionDescription(delKnowsLink);
+        modelSection.getOwnedTools().add(delKnowsLink);
 
         // Object Relationships Palette Section
         ToolSection linkSection = dtf.createToolSection();
         linkSection.setName("InstanceLinksSection");
         linkSection.setLabel("Links");
         defaultLayer.getToolSections().add(linkSection);
-
-        EdgeCreationDescription createHasLinkTool = dtf.createEdgeCreationDescription();
-        createHasLinkTool.setName("CreateHasLink");
-        createHasLinkTool.setLabel("has (Containment Link)");
-        createHasLinkTool.getEdgeMappings().add(instanceHasEdge);
-        InitEdgeCreationOperation hasLinkOp = vtf.createInitEdgeCreationOperation();
-        ChangeContext hasLinkCtx = vtf.createChangeContext();
-        hasLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, true)");
-        hasLinkOp.setFirstModelOperations(hasLinkCtx);
-        createHasLinkTool.setInitialOperation(hasLinkOp);
-        linkSection.getOwnedTools().add(createHasLinkTool);
 
         EdgeCreationDescription createKnowsLinkTool = dtf.createEdgeCreationDescription();
         createKnowsLinkTool.setName("CreateKnowsLink");
@@ -522,6 +576,17 @@ public class OdesignGenerator {
         knowsLinkOp.setFirstModelOperations(knowsLinkCtx);
         createKnowsLinkTool.setInitialOperation(knowsLinkOp);
         linkSection.getOwnedTools().add(createKnowsLinkTool);
+
+        EdgeCreationDescription createHasLinkTool = dtf.createEdgeCreationDescription();
+        createHasLinkTool.setName("CreateHasLink");
+        createHasLinkTool.setLabel("has (Containment Link)");
+        createHasLinkTool.getEdgeMappings().add(instanceHasEdge);
+        InitEdgeCreationOperation hasLinkOp = vtf.createInitEdgeCreationOperation();
+        ChangeContext hasLinkCtx = vtf.createChangeContext();
+        hasLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, true)");
+        hasLinkOp.setFirstModelOperations(hasLinkCtx);
+        createHasLinkTool.setInitialOperation(hasLinkOp);
+        linkSection.getOwnedTools().add(createHasLinkTool);
     }
 
     private static NodeCreationDescription createPropertyTool(NodeMapping attributeNode, String label,
@@ -570,8 +635,7 @@ public class OdesignGenerator {
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
         EdgeCreationDescription tool = dtf.createEdgeCreationDescription();
-        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-",
-                ""));
+        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-", ""));
         tool.setLabel(label);
         tool.getEdgeMappings().add(edgeMapping);
 
@@ -602,7 +666,6 @@ public class OdesignGenerator {
 
         createRef.getSubModelOperations().add(setName);
         createRef.getSubModelOperations().add(setType);
-        createRef.getSubModelOperations().add(setContainment);
         createRef.getSubModelOperations().add(setBound);
         ctx.getSubModelOperations().add(createRef);
         op.setFirstModelOperations(ctx);

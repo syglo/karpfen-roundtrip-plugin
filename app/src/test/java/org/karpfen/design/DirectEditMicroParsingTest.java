@@ -1,15 +1,18 @@
 package org.karpfen.design;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.eclipse.emf.ecore.EAnnotation;
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EReference;
-import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.ETypedElement;
 import org.eclipse.emf.ecore.EcoreFactory;
 import org.eclipse.emf.ecore.EcorePackage;
@@ -176,7 +179,7 @@ public class DirectEditMicroParsingTest {
     }
 
     @Test
-    void testKModelSlotMicroParsing() {
+    void testKModelSlotMicroParsingAndUnset() {
         EClass robotClass = factory.createEClass();
         robotClass.setName("Robot");
 
@@ -200,15 +203,150 @@ public class DirectEditMicroParsingTest {
         assertEquals(2.5, (Double) robotObj.eGet(speedAttr));
         assertEquals("speed = 2.5", services.getKModelSlotLabel(attr, robotObj));
 
-        services.editKModelSlot(robotObj, attr, "3.0");
-        assertEquals(3.0, (Double) robotObj.eGet(speedAttr));
-        assertEquals("speed = 3.0", services.getKModelSlotLabel(attr, robotObj));
+        // Test unsetting slot when user types 'speed = <unset>'
+        services.editKModelSlot(robotObj, attr, "speed = <unset>");
+        assertFalse(robotObj.eIsSet(speedAttr));
+        assertEquals("speed = <unset>", services.getKModelSlotLabel(attr, robotObj));
 
-        services.editKModelSlot(robotObj, attr, "prop(\"speed\") -> \"4.5\"");
+        // Test assigning value back from unset
+        services.editKModelSlot(robotObj, attr, "4.5");
+        assertTrue(robotObj.eIsSet(speedAttr));
         assertEquals(4.5, (Double) robotObj.eGet(speedAttr));
         assertEquals("speed = 4.5", services.getKModelSlotLabel(attr, robotObj));
 
-        services.editKModelSlot(robotObj, attr, "prop(speed -> broken");
-        assertEquals(4.5, (Double) robotObj.eGet(speedAttr));
+        // Test unsetting slot when user types bare '<unset>'
+        services.editKModelSlot(robotObj, attr, "<unset>");
+        assertFalse(robotObj.eIsSet(speedAttr));
+        assertEquals("speed = <unset>", services.getKModelSlotLabel(attr, robotObj));
+    }
+
+    @Test
+    void testKModelMultiFeatureCommaDirectEditAndReconciliation() {
+        EPackage pkg = factory.createEPackage();
+        pkg.setName("roomdomain");
+
+        EClass robotClass = factory.createEClass();
+        robotClass.setName("Robot");
+        pkg.getEClassifiers().add(robotClass);
+
+        EClass wallClass = factory.createEClass();
+        wallClass.setName("Wall");
+        pkg.getEClassifiers().add(wallClass);
+
+        EClass obstacleClass = factory.createEClass();
+        obstacleClass.setName("Obstacle");
+        pkg.getEClassifiers().add(obstacleClass);
+
+        // ID attributes
+        for (org.eclipse.emf.ecore.EClassifier c : pkg.getEClassifiers()) {
+            if (c instanceof EClass ec) {
+                EAttribute id = factory.createEAttribute();
+                id.setName(KarpfenDiagramServices.ID_FEATURE_NAME);
+                id.setEType(EcorePackage.Literals.ESTRING);
+                ec.getEStructuralFeatures().add(id);
+            }
+        }
+
+        // Robot knows closest_wall (scalar Wall) and walls (list Wall)
+        EReference knowsClosestWall = factory.createEReference();
+        knowsClosestWall.setName("closest_wall");
+        knowsClosestWall.setContainment(false);
+        knowsClosestWall.setUpperBound(1);
+        knowsClosestWall.setEType(wallClass);
+        robotClass.getEStructuralFeatures().add(knowsClosestWall);
+
+        EReference knowsWalls = factory.createEReference();
+        knowsWalls.setName("walls");
+        knowsWalls.setContainment(false);
+        knowsWalls.setUpperBound(ETypedElement.UNBOUNDED_MULTIPLICITY);
+        knowsWalls.setEType(wallClass);
+        robotClass.getEStructuralFeatures().add(knowsWalls);
+
+        // Robot knows closest_obstacle (scalar Obstacle) and obstacles (list Obstacle)
+        EReference knowsClosestObstacle = factory.createEReference();
+        knowsClosestObstacle.setName("closest_obstacle");
+        knowsClosestObstacle.setContainment(false);
+        knowsClosestObstacle.setUpperBound(1);
+        knowsClosestObstacle.setEType(obstacleClass);
+        robotClass.getEStructuralFeatures().add(knowsClosestObstacle);
+
+        EReference knowsObstacles = factory.createEReference();
+        knowsObstacles.setName("obstacles");
+        knowsObstacles.setContainment(false);
+        knowsObstacles.setUpperBound(ETypedElement.UNBOUNDED_MULTIPLICITY);
+        knowsObstacles.setEType(obstacleClass);
+        robotClass.getEStructuralFeatures().add(knowsObstacles);
+
+        EObject robot = pkg.getEFactoryInstance().create(robotClass);
+        robot.eSet(robotClass.getEStructuralFeature(KarpfenDiagramServices.ID_FEATURE_NAME), "turtle");
+
+        EObject wall1 = pkg.getEFactoryInstance().create(wallClass);
+        wall1.eSet(wallClass.getEStructuralFeature(KarpfenDiagramServices.ID_FEATURE_NAME), "wall_top");
+
+        EObject chair = pkg.getEFactoryInstance().create(obstacleClass);
+        chair.eSet(obstacleClass.getEStructuralFeature(KarpfenDiagramServices.ID_FEATURE_NAME), "chair");
+
+        // Robot linking to Wall - scalar closest_wall
+        services.createInstanceLink(robot, wall1, false);
+        assertSame(wall1, robot.eGet(knowsClosestWall));
+        assertEquals("closest_wall", services.getInstanceReferenceLabel(robot, wall1));
+
+        // Direct-Edit bind multi features (sirius problem) on Wall - closest_wall,
+        // walls
+        services.editInstanceEdge(robot, wall1, "closest_wall, walls", false);
+        assertTrue(robot.eIsSet(knowsClosestWall));
+        assertSame(wall1, robot.eGet(knowsClosestWall));
+        @SuppressWarnings("unchecked")
+        List<EObject> wallsList = (List<EObject>) robot.eGet(knowsWalls);
+        assertTrue(wallsList.contains(wall1));
+        assertEquals("closest_wall, walls", services.getInstanceReferenceLabel(robot, wall1));
+
+        // Double link on Obstacle - closest_obstacle, obstacles
+        services.createInstanceLink(robot, chair, false);
+        services.editInstanceEdge(robot, chair, "closest_obstacle, obstacles", false);
+        assertTrue(robot.eIsSet(knowsClosestObstacle));
+        assertSame(chair, robot.eGet(knowsClosestObstacle));
+        @SuppressWarnings("unchecked")
+        List<EObject> obsList = (List<EObject>) robot.eGet(knowsObstacles);
+        assertTrue(obsList.contains(chair));
+        assertEquals("closest_obstacle, obstacles", services.getInstanceReferenceLabel(robot, chair));
+
+        // Type safety when linking, when renaming edge on walls to "obstacles"
+        // throws errors, expecting obstacle instead of wall
+        // Must reject to prevent corruption of graphical model diagram
+        services.editInstanceEdge(robot, wall1, "obstacles", false);
+        assertTrue(robot.eIsSet(knowsClosestWall));
+        assertTrue(wallsList.contains(wall1));
+        assertFalse(obsList.contains(wall1));
+        assertEquals("closest_wall, walls", services.getInstanceReferenceLabel(robot, wall1));
+
+        // Must reject edit to prevent model type mismatch corruption
+        // Type safety when renaming edge from chair (Obstacle) to walls
+        // must reject, expects wall not obstacle
+        services.editInstanceEdge(robot, chair, "walls", false);
+        assertTrue(robot.eIsSet(knowsClosestObstacle));
+        assertTrue(obsList.contains(chair));
+        assertFalse(wallsList.contains(chair));
+        assertEquals("closest_obstacle, obstacles", services.getInstanceReferenceLabel(robot, chair));
+
+        // Direct-Edit rebind to single feature "walls"
+        // From "closest_wall, walls" to just "walls"
+        services.editInstanceEdge(robot, wall1, "walls", false);
+        assertFalse(robot.eIsSet(knowsClosestWall));
+        assertTrue(wallsList.contains(wall1));
+        assertEquals("walls", services.getInstanceReferenceLabel(robot, wall1));
+
+        // Direct-Edit to "<unset>" should clear all links to wall
+        services.editInstanceEdge(robot, wall1, "<unset>", false);
+        assertFalse(robot.eIsSet(knowsClosestWall));
+        assertFalse(wallsList.contains(wall1));
+        assertEquals("knows", services.getInstanceReferenceLabel(robot, wall1));
+
+        // Deleting of multiple edge with multi features
+        services.editInstanceEdge(robot, wall1, "closest_wall, walls", false);
+        assertEquals("closest_wall, walls", services.getInstanceReferenceLabel(robot, wall1));
+        services.deleteInstanceLink(robot, wall1, false);
+        assertFalse(robot.eIsSet(knowsClosestWall));
+        assertFalse(wallsList.contains(wall1));
     }
 }

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{CLASS_NAME}} ({{PACKAGE_NAME}})</title>
+    <!-- Highlight.js GitHub Dark Theme CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --card: #21262d;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --muted: #8b949e;
+            --accent: #58a6ff;
+            --decl: #7ee787;
+            --ret: #ff7b72;
+            --method: #d2a8ff;
+            --field: #79c0ff;
+            --code-bg: #030712;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 28px 36px;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .breadcrumbs {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+            font-family: monospace;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: var(--accent);
+            margin: 0 0 10px 0;
+        }
+
+        .decl-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-family: monospace;
+            color: var(--decl);
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .hierarchy-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .hierarchy-row strong {
+            color: var(--muted);
+            width: 100px;
+            display: inline-block;
+        }
+
+        .meta-bar {
+            display: flex;
+            gap: 16px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .meta-bar code {
+            color: var(--text);
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 26px 0 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .count-pill {
+            font-size: 11px;
+            background: var(--card);
+            color: var(--muted);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .member-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 9px 14px;
+            margin-bottom: 6px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .ret-type {
+            color: var(--ret);
+        }
+
+        .member-name {
+            color: var(--method);
+            font-weight: bold;
+        }
+
+        .field-name {
+            color: var(--field);
+            font-weight: bold;
+        }
+
+        .params {
+            color: var(--text);
+        }
+
+        .throws-clause {
+            color: #d29922;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        .static-tag {
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        /* Decompiled Source Section */
+        details.decompiled-wrapper {
+            margin-top: 14px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        details.decompiled-wrapper summary {
+            padding: 12px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--accent);
+            background: var(--card);
+            user-select: none;
+        }
+
+        details.decompiled-wrapper summary:hover {
+            color: #79c0ff;
+        }
+
+        .code-block {
+            background: var(--code-bg) !important;
+            padding: 0;
+            margin: 0;
+            overflow-x: auto;
+            max-height: 700px;
+        }
+
+        .code-block code {
+            font-family: Consolas, "Courier New", monospace !important;
+            font-size: 12.5px !important;
+            line-height: 1.5 !important;
+            padding: 16px !important;
+            background: transparent !important;
+        }
+
+        .type-link {
+            color: inherit;
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(88, 166, 255, 0.4);
+            cursor: pointer;
+        }
+
+        .type-link:hover {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .empty {
+            color: var(--muted);
+            font-style: italic;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="breadcrumbs">{{PACKAGE_NAME}}</div>
+        <h1>{{CLASS_NAME}}</h1>
+        <div class="decl-box">{{DECLARATION}}</div>
+
+        <div class="hierarchy-box">
+            {{SUPERCLASS_ROW}}
+            {{INTERFACES_ROW}}
+        </div>
+
+        <div class="meta-bar">
+            <span>JAR: <code>{{JAR_NAME}}</code></span>
+            <span>Kind: <code>{{KIND}}</code></span>
+        </div>
+    </div>
+
+    {{FIELDS_SECTION}}
+
+    <div class="section-title">
+        <span>Methods</span>
+        <span class="count-pill">{{METHOD_COUNT}}</span>
+    </div>
+    {{METHODS_LIST}}
+
+    <div class="section-title">
+        <span>Decompiled Source Code</span>
+    </div>
+    <details class="decompiled-wrapper" open>
+        <summary>⚡ View Full Java Implementation (Vineflower)</summary>
+        <pre class="code-block"><code class="language-java">{{DECOMPILED_CODE}}</code></pre>
+    </details>
+
+    <!-- Highlight.js JS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/java.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Trigger syntax highlighting on Java code blocks
+            hljs.highlightAll();
+
+            // Cross-link type identifiers across signatures
+            if (!window.parent || !window.parent.NAV_DATA) return;
+            const typeIndex = {};
+            window.parent.NAV_DATA.forEach(item => {
+                typeIndex[item.name] = item.path;
+            });
+
+            document.querySelectorAll('.ret-type, .params, .hierarchy-row span, .decl-box').forEach(el => {
+                const words = el.innerHTML.split(/([a-zA-Z0-9_$]+)/);
+                const linked = words.map(w => {
+                    if (typeIndex[w]) {
+                        return `<a class="type-link" onclick="window.parent.navigateToClass('${typeIndex[w]}')">${w}</a>`;
+                    }
+                    return w;
+                }).join('');
+                el.innerHTML = linked;
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -14,12 +14,9 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
-import org.eclipse.sirius.diagram.ContainerLayout;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DescriptionPackage;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
-import org.eclipse.sirius.diagram.description.EdgeMapping;
-import org.eclipse.sirius.diagram.description.NodeMapping;
 import org.eclipse.sirius.viewpoint.ViewpointPackage;
 import org.eclipse.sirius.viewpoint.description.Group;
 import org.eclipse.sirius.viewpoint.description.Viewpoint;
@@ -92,16 +89,24 @@ public class OdesignGeneratorTest {
         DiagramDescription kmetaDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
         assertEquals(1, kmetaDiagram.getDefaultLayer().getContainerMappings().size());
+        assertEquals(3, kmetaDiagram.getDefaultLayer().getToolSections().size());
 
         // KModel
         DiagramDescription kmodelDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
         assertEquals(1, kmodelDiagram.getDefaultLayer().getContainerMappings().size());
+        assertEquals(2, kmodelDiagram.getDefaultLayer().getToolSections().size());
+        assertEquals(2, kmodelDiagram.getDefaultLayer().getEdgeMappings().size());
 
         ContainerMapping eObjNode = kmodelDiagram.getDefaultLayer().getContainerMappings().get(0);
         assertEquals("EObjectNode", eObjNode.getName());
+        assertNotNull(eObjNode.getDeletionDescription(), "EObjectNode must have a deletion description");
         assertEquals(1, eObjNode.getSubNodeMappings().size());
-        assertEquals("EAttributeSlotNode", eObjNode.getSubNodeMappings().get(0).getName());
+
+        assertNotNull(kmodelDiagram.getDefaultLayer().getEdgeMappings().get(0).getDeletionDescription(),
+                "InstanceContainmentEdge must have deletion tool");
+        assertNotNull(kmodelDiagram.getDefaultLayer().getEdgeMappings().get(1).getDeletionDescription(),
+                "InstanceReferenceEdge must have deletion tool");
     }
 
     @Test
