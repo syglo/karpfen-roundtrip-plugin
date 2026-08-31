@@ -4,22 +4,6 @@
     <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KMetaClassDiagram" label="KMeta Class Diagram" domainClass="ecore.EPackage">
       <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
       <defaultLayer name="Default" label="Default">
-        <edgeMappings name="HasCompositionEdge" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditHasEdge']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
-          <style sourceArrow="FillDiamond">
-            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
-            <centerLabelStyleDescription labelExpression="aql:self.getKMetaEdgeLabel()">
-              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
-            </centerLabelStyleDescription>
-          </style>
-        </edgeMappings>
-        <edgeMappings name="KnowsAssociationEdge" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditKnowsEdge']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not(r.containment))" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
-          <style lineStyle="dash">
-            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
-            <centerLabelStyleDescription labelExpression="aql:self.getKMetaEdgeLabel()">
-              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
-            </centerLabelStyleDescription>
-          </style>
-        </edgeMappings>
         <containerMappings name="EClassNode" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditTypeName']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass)" domainClass="ecore.EClass" childrenPresentation="List">
           <subNodeMappings name="EAttributeNode" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditAttributeDSL']" semanticCandidatesExpression="aql:self.eAttributes->select(a | a.name != '__id__')" domainClass="ecore.EAttribute">
             <style xsi:type="style:SquareDescription" labelExpression="aql:self.getKMetaAttributeLabel()" labelAlignment="LEFT" labelPosition="node">
@@ -28,7 +12,7 @@
               <color xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
             </style>
           </subNodeMappings>
-          <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.getKMetaClassLabel()">
+          <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.getKMetaClassLabel()" widthComputationExpression="14" heightComputationExpression="4">
             <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
             <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
             <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>
@@ -134,7 +118,7 @@
           </ownedTools>
         </toolSections>
         <toolSections name="RelationsSection" label="Relationships">
-          <ownedTools xsi:type="tool:EdgeCreationDescription" name="has11embedded" label="has (1:1 embedded)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@edgeMappings[name='HasCompositionEdge']">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="has11embedded" label="has (1:1 embedded)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='HasCompositionEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoHasCompositionEdge']">
             <sourceVariable name="source"/>
             <targetVariable name="target"/>
             <sourceViewVariable name="sourceView"/>
@@ -144,12 +128,13 @@
                 <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EReference" referenceName="eStructuralFeatures" variableName="newRef">
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'has_' + target.name.toLowerFirst()"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:target"/>
+                  <subModelOperations xsi:type="tool_1:SetValue" featureName="containment" valueExpression="aql:true"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="upperBound" valueExpression="aql:1"/>
                 </subModelOperations>
               </firstModelOperations>
             </initialOperation>
           </ownedTools>
-          <ownedTools xsi:type="tool:EdgeCreationDescription" name="has1Nembeddedlist" label="has (1:N embedded list)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@edgeMappings[name='HasCompositionEdge']">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="has1Nembeddedlist" label="has (1:N embedded list)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='HasCompositionEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoHasCompositionEdge']">
             <sourceVariable name="source"/>
             <targetVariable name="target"/>
             <sourceViewVariable name="sourceView"/>
@@ -159,12 +144,13 @@
                 <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EReference" referenceName="eStructuralFeatures" variableName="newRef">
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'has_list_' + target.name.toLowerFirst()"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:target"/>
+                  <subModelOperations xsi:type="tool_1:SetValue" featureName="containment" valueExpression="aql:true"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="upperBound" valueExpression="aql:-1"/>
                 </subModelOperations>
               </firstModelOperations>
             </initialOperation>
           </ownedTools>
-          <ownedTools xsi:type="tool:EdgeCreationDescription" name="knows11link" label="knows (1:1 link)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@edgeMappings[name='KnowsAssociationEdge']">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="knows11link" label="knows (1:1 link)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='KnowsAssociationEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoKnowsAssociationEdge']">
             <sourceVariable name="source"/>
             <targetVariable name="target"/>
             <sourceViewVariable name="sourceView"/>
@@ -174,12 +160,13 @@
                 <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EReference" referenceName="eStructuralFeatures" variableName="newRef">
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'knows_' + target.name.toLowerFirst()"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:target"/>
+                  <subModelOperations xsi:type="tool_1:SetValue" featureName="containment" valueExpression="aql:false"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="upperBound" valueExpression="aql:1"/>
                 </subModelOperations>
               </firstModelOperations>
             </initialOperation>
           </ownedTools>
-          <ownedTools xsi:type="tool:EdgeCreationDescription" name="knows1Nlinklist" label="knows (1:N link list)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@edgeMappings[name='KnowsAssociationEdge']">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="knows1Nlinklist" label="knows (1:N link list)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='KnowsAssociationEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoKnowsAssociationEdge']">
             <sourceVariable name="source"/>
             <targetVariable name="target"/>
             <sourceViewVariable name="sourceView"/>
@@ -189,6 +176,7 @@
                 <subModelOperations xsi:type="tool_1:CreateInstance" typeName="ecore.EReference" referenceName="eStructuralFeatures" variableName="newRef">
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="name" valueExpression="aql:'knows_list_' + target.name.toLowerFirst()"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="eType" valueExpression="aql:target"/>
+                  <subModelOperations xsi:type="tool_1:SetValue" featureName="containment" valueExpression="aql:false"/>
                   <subModelOperations xsi:type="tool_1:SetValue" featureName="upperBound" valueExpression="aql:-1"/>
                 </subModelOperations>
               </firstModelOperations>
@@ -196,26 +184,46 @@
           </ownedTools>
         </toolSections>
       </defaultLayer>
+      <additionalLayers name="StraightRoutingLayer" label="Direct (Straight) Routing" activeByDefault="true">
+        <edgeMappings name="HasCompositionEdge" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditHasEdge']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
+          <style sourceArrow="FillDiamond">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getKMetaEdgeLabel()">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+        <edgeMappings name="KnowsAssociationEdge" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditKnowsEdge']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not(r.containment))" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
+          <style lineStyle="dash">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getKMetaEdgeLabel()">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+      </additionalLayers>
+      <additionalLayers name="OrthogonalRoutingLayer" label="Orthogonal (Manhattan) Routing">
+        <edgeMappings name="OrthoHasCompositionEdge" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditHasEdge']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
+          <style sourceArrow="FillDiamond" routingStyle="manhattan">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getKMetaEdgeLabel()">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+        <edgeMappings name="OrthoKnowsAssociationEdge" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditKnowsEdge']" semanticCandidatesExpression="aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not(r.containment))" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KMetaClassDiagram']/@defaultLayer/@containerMappings[name='EClassNode']" targetFinderExpression="aql:self.eType" sourceFinderExpression="aql:self.eContainingClass" domainClass="ecore.EReference" useDomainElement="true">
+          <style lineStyle="dash" routingStyle="manhattan">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getKMetaEdgeLabel()">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+      </additionalLayers>
     </ownedRepresentations>
     <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject">
       <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
       <defaultLayer name="Default" label="Default">
-        <edgeMappings name="InstanceContainmentEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteHasLinkTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditInstanceHasEdge']" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eContents()">
-          <style sourceArrow="FillDiamond">
-            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
-            <centerLabelStyleDescription labelExpression="aql:self.getInstanceContainmentLabel(view)">
-              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
-            </centerLabelStyleDescription>
-          </style>
-        </edgeMappings>
-        <edgeMappings name="InstanceReferenceEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteKnowsLinkTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditInstanceKnowsEdge']" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eCrossReferences()">
-          <style lineStyle="dash">
-            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
-            <centerLabelStyleDescription labelExpression="aql:self.getInstanceReferenceLabel(view)">
-              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
-            </centerLabelStyleDescription>
-          </style>
-        </edgeMappings>
         <containerMappings name="EObjectNode" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteObjectTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditObjectHeader']" semanticCandidatesExpression="aql:self.eAllContents()->including(self)" domainClass="ecore.EObject" childrenPresentation="List">
           <subNodeMappings name="EAttributeSlotNode" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditSlotValue']" semanticCandidatesExpression="aql:self.getSchemaAttributes()" domainClass="ecore.EAttribute">
             <style xsi:type="style:SquareDescription" labelExpression="aql:self.getKModelSlotLabel(view)" labelAlignment="LEFT" labelPosition="node">
@@ -224,7 +232,7 @@
               <color xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
             </style>
           </subNodeMappings>
-          <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.getObjectHeaderLabel()" labelAlignment="LEFT">
+          <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.getObjectHeaderLabel()" labelAlignment="LEFT" widthComputationExpression="16" heightComputationExpression="4">
             <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
             <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
             <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>
@@ -282,7 +290,7 @@
           </ownedTools>
         </toolSections>
         <toolSections name="InstanceLinksSection" label="Links">
-          <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateKnowsLink" label="knows (Reference Link)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@edgeMappings[name='InstanceReferenceEdge']">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateKnowsLink" label="knows (Reference Link)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='InstanceReferenceEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoInstanceReferenceEdge']">
             <sourceVariable name="source"/>
             <targetVariable name="target"/>
             <sourceViewVariable name="sourceView"/>
@@ -291,7 +299,7 @@
               <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:source.createInstanceLink(target, false)"/>
             </initialOperation>
           </ownedTools>
-          <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateHasLink" label="has (Containment Link)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@edgeMappings[name='InstanceContainmentEdge']">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateHasLink" label="has (Containment Link)" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='InstanceContainmentEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoInstanceContainmentEdge']">
             <sourceVariable name="source"/>
             <targetVariable name="target"/>
             <sourceViewVariable name="sourceView"/>
@@ -302,6 +310,42 @@
           </ownedTools>
         </toolSections>
       </defaultLayer>
+      <additionalLayers name="StraightRoutingLayer" label="Direct (Straight) Routing" activeByDefault="true">
+        <edgeMappings name="InstanceContainmentEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteHasLinkTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditInstanceHasEdge']" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eContents()">
+          <style sourceArrow="FillDiamond">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getInstanceContainmentLabel(view)">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+        <edgeMappings name="InstanceReferenceEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteKnowsLinkTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditInstanceKnowsEdge']" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eCrossReferences()">
+          <style lineStyle="dash">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getInstanceReferenceLabel(view)">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+      </additionalLayers>
+      <additionalLayers name="OrthogonalRoutingLayer" label="Orthogonal (Manhattan) Routing">
+        <edgeMappings name="OrthoInstanceContainmentEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteHasLinkTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditInstanceHasEdge']" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eContents()">
+          <style sourceArrow="FillDiamond" routingStyle="manhattan">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getInstanceContainmentLabel(view)">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+        <edgeMappings name="OrthoInstanceReferenceEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteKnowsLinkTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditInstanceKnowsEdge']" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@containerMappings[name='EObjectNode']" targetFinderExpression="aql:self.eCrossReferences()">
+          <style lineStyle="dash" routingStyle="manhattan">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getInstanceReferenceLabel(view)">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+      </additionalLayers>
     </ownedRepresentations>
     <ownedJavaExtensions qualifiedClassName="org.karpfen.design.KarpfenDiagramServices"/>
   </ownedViewpoints>

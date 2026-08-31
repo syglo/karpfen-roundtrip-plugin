@@ -13,12 +13,15 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
+import org.eclipse.sirius.diagram.description.CenteringStyle;
 import org.eclipse.sirius.diagram.ContainerLayout;
 import org.eclipse.sirius.diagram.DiagramPackage;
 import org.eclipse.sirius.diagram.EdgeArrows;
+import org.eclipse.sirius.diagram.EdgeRouting;
 import org.eclipse.sirius.diagram.LabelPosition;
 import org.eclipse.sirius.diagram.LineStyle;
 import org.eclipse.sirius.diagram.ResizeKind;
+import org.eclipse.sirius.diagram.description.AdditionalLayer;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DescriptionFactory;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
@@ -150,6 +153,8 @@ public class OdesignGenerator {
         classStyle.setLabelExpression("aql:self.getKMetaClassLabel()");
         classStyle.setShowIcon(true);
         classStyle.setBorderSizeComputationExpression("1");
+        classStyle.setWidthComputationExpression("14");
+        classStyle.setHeightComputationExpression("4");
         eClassNode.setStyle(classStyle);
         kmetaDefaultLayer.getContainerMappings().add(eClassNode);
 
@@ -169,57 +174,41 @@ public class OdesignGenerator {
         attributeNode.setStyle(attrStyle);
         eClassNode.getSubNodeMappings().add(attributeNode);
 
-        // Edge has - composition reference
-        EdgeMapping kmetaHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        kmetaHasEdge.setName("HasCompositionEdge");
-        kmetaHasEdge.setDomainClass("ecore.EReference");
-        kmetaHasEdge.setUseDomainElement(true);
-        kmetaHasEdge.setSemanticCandidatesExpression(
-                "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)");
-        kmetaHasEdge.getSourceMapping().add(eClassNode);
-        kmetaHasEdge.getTargetMapping().add(eClassNode);
-        kmetaHasEdge.setSourceFinderExpression("aql:self.eContainingClass");
-        kmetaHasEdge.setTargetFinderExpression("aql:self.eType");
+        // Straight Routing Layer
+        AdditionalLayer kmetaStraightLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
+        kmetaStraightLayer.setName("StraightRoutingLayer");
+        kmetaStraightLayer.setLabel("Direct (Straight) Routing");
+        kmetaStraightLayer.setActiveByDefault(true);
+        kmetaStraightLayer.setOptional(true);
 
-        EdgeStyleDescription hasEdgeStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
-        hasEdgeStyle.setLineStyle(LineStyle.SOLID_LITERAL);
-        hasEdgeStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
-        hasEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
-        hasEdgeStyle.setSizeComputationExpression("1");
-        CenterLabelStyleDescription kmetaHasLabelStyle = StyleFactory.eINSTANCE
-                .createCenterLabelStyleDescription();
-        kmetaHasLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
-        kmetaHasLabelStyle.setShowIcon(true);
-        hasEdgeStyle.setCenterLabelStyleDescription(kmetaHasLabelStyle);
-        kmetaHasEdge.setStyle(hasEdgeStyle);
-        kmetaDefaultLayer.getEdgeMappings().add(kmetaHasEdge);
+        EdgeMapping kmetaHasEdge = createKmetaEdgeMapping("HasCompositionEdge", true, eClassNode,
+                EdgeRouting.STRAIGHT_LITERAL);
+        kmetaStraightLayer.getEdgeMappings().add(kmetaHasEdge);
 
-        // Edge knows - association reference
-        EdgeMapping kmetaKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        kmetaKnowsEdge.setName("KnowsAssociationEdge");
-        kmetaKnowsEdge.setDomainClass("ecore.EReference");
-        kmetaKnowsEdge.setUseDomainElement(true);
-        kmetaKnowsEdge.setSemanticCandidatesExpression(
-                "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not(r.containment))");
-        kmetaKnowsEdge.getSourceMapping().add(eClassNode);
-        kmetaKnowsEdge.getTargetMapping().add(eClassNode);
-        kmetaKnowsEdge.setSourceFinderExpression("aql:self.eContainingClass");
-        kmetaKnowsEdge.setTargetFinderExpression("aql:self.eType");
+        EdgeMapping kmetaKnowsEdge = createKmetaEdgeMapping("KnowsAssociationEdge", false, eClassNode,
+                EdgeRouting.STRAIGHT_LITERAL);
+        kmetaStraightLayer.getEdgeMappings().add(kmetaKnowsEdge);
+        kmetaDiagram.getAdditionalLayers().add(kmetaStraightLayer);
 
-        EdgeStyleDescription knowsEdgeStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
-        knowsEdgeStyle.setLineStyle(LineStyle.DASH_LITERAL);
-        knowsEdgeStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
-        knowsEdgeStyle.setSizeComputationExpression("1");
-        CenterLabelStyleDescription kmetaKnowsLabelStyle = StyleFactory.eINSTANCE
-                .createCenterLabelStyleDescription();
-        kmetaKnowsLabelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
-        kmetaKnowsLabelStyle.setShowIcon(true);
-        knowsEdgeStyle.setCenterLabelStyleDescription(kmetaKnowsLabelStyle);
-        kmetaKnowsEdge.setStyle(knowsEdgeStyle);
-        kmetaDefaultLayer.getEdgeMappings().add(kmetaKnowsEdge);
+        // Orthogonal Routing Layer
+        AdditionalLayer kmetaOrthoLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
+        kmetaOrthoLayer.setName("OrthogonalRoutingLayer");
+        kmetaOrthoLayer.setLabel("Orthogonal (Manhattan) Routing");
+        kmetaOrthoLayer.setActiveByDefault(false);
+        kmetaOrthoLayer.setOptional(true);
+
+        EdgeMapping orthoKmetaHasEdge = createKmetaEdgeMapping("OrthoHasCompositionEdge", true, eClassNode,
+                EdgeRouting.MANHATTAN_LITERAL);
+        kmetaOrthoLayer.getEdgeMappings().add(orthoKmetaHasEdge);
+
+        EdgeMapping orthoKmetaKnowsEdge = createKmetaEdgeMapping("OrthoKnowsAssociationEdge", false, eClassNode,
+                EdgeRouting.MANHATTAN_LITERAL);
+        kmetaOrthoLayer.getEdgeMappings().add(orthoKmetaKnowsEdge);
+        kmetaDiagram.getAdditionalLayers().add(kmetaOrthoLayer);
 
         // KMETA TOOLS
-        buildKMetaToolSections(kmetaDefaultLayer, eClassNode, attributeNode, kmetaHasEdge, kmetaKnowsEdge);
+        buildKMetaToolSections(kmetaDefaultLayer, eClassNode, attributeNode,
+                kmetaHasEdge, kmetaKnowsEdge, orthoKmetaHasEdge, orthoKmetaKnowsEdge);
 
         ///////
         // !!! KModel object diagram
@@ -248,6 +237,8 @@ public class OdesignGenerator {
         objStyle.setLabelAlignment(LabelAlignment.LEFT);
         objStyle.setShowIcon(true);
         objStyle.setBorderSizeComputationExpression("1");
+        objStyle.setWidthComputationExpression("16");
+        objStyle.setHeightComputationExpression("4");
         eObjectNode.setStyle(objStyle);
         kmodelDefaultLayer.getContainerMappings().add(eObjectNode);
 
@@ -267,48 +258,41 @@ public class OdesignGenerator {
         slotNode.setStyle(slotStyle);
         eObjectNode.getSubNodeMappings().add(slotNode);
 
-        // Edge has - Containment link with feature name label
-        EdgeMapping instanceHasEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        instanceHasEdge.setName("InstanceContainmentEdge");
-        instanceHasEdge.setUseDomainElement(false);
-        instanceHasEdge.getSourceMapping().add(eObjectNode);
-        instanceHasEdge.getTargetMapping().add(eObjectNode);
-        instanceHasEdge.setTargetFinderExpression("aql:self.eContents()");
+        // Straight Routing Layer
+        AdditionalLayer kmodelStraightLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
+        kmodelStraightLayer.setName("StraightRoutingLayer");
+        kmodelStraightLayer.setLabel("Direct (Straight) Routing");
+        kmodelStraightLayer.setActiveByDefault(true);
+        kmodelStraightLayer.setOptional(true);
 
-        EdgeStyleDescription instanceHasStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
-        instanceHasStyle.setLineStyle(LineStyle.SOLID_LITERAL);
-        instanceHasStyle.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
-        instanceHasStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
-        instanceHasStyle.setSizeComputationExpression("1");
-        CenterLabelStyleDescription instanceHasLabelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
-        instanceHasLabelStyle.setLabelExpression("aql:self.getInstanceContainmentLabel(view)");
-        instanceHasLabelStyle.setShowIcon(false);
-        instanceHasStyle.setCenterLabelStyleDescription(instanceHasLabelStyle);
-        instanceHasEdge.setStyle(instanceHasStyle);
-        kmodelDefaultLayer.getEdgeMappings().add(instanceHasEdge);
+        EdgeMapping instanceHasEdge = createKmodelEdgeMapping("InstanceContainmentEdge", true, eObjectNode,
+                EdgeRouting.STRAIGHT_LITERAL);
+        kmodelStraightLayer.getEdgeMappings().add(instanceHasEdge);
 
-        // Edge knows - Reference link with feature name label
-        EdgeMapping instanceKnowsEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        instanceKnowsEdge.setName("InstanceReferenceEdge");
-        instanceKnowsEdge.setUseDomainElement(false);
-        instanceKnowsEdge.getSourceMapping().add(eObjectNode);
-        instanceKnowsEdge.getTargetMapping().add(eObjectNode);
-        instanceKnowsEdge.setTargetFinderExpression("aql:self.eCrossReferences()");
+        EdgeMapping instanceKnowsEdge = createKmodelEdgeMapping("InstanceReferenceEdge", false, eObjectNode,
+                EdgeRouting.STRAIGHT_LITERAL);
+        kmodelStraightLayer.getEdgeMappings().add(instanceKnowsEdge);
+        kmodelDiagram.getAdditionalLayers().add(kmodelStraightLayer);
 
-        EdgeStyleDescription instanceKnowsStyle = StyleFactory.eINSTANCE.createEdgeStyleDescription();
-        instanceKnowsStyle.setLineStyle(LineStyle.DASH_LITERAL);
-        instanceKnowsStyle.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
-        instanceKnowsStyle.setSizeComputationExpression("1");
-        CenterLabelStyleDescription instanceKnowsLabelStyle = StyleFactory.eINSTANCE
-                .createCenterLabelStyleDescription();
-        instanceKnowsLabelStyle.setLabelExpression("aql:self.getInstanceReferenceLabel(view)");
-        instanceKnowsLabelStyle.setShowIcon(false);
-        instanceKnowsStyle.setCenterLabelStyleDescription(instanceKnowsLabelStyle);
-        instanceKnowsEdge.setStyle(instanceKnowsStyle);
-        kmodelDefaultLayer.getEdgeMappings().add(instanceKnowsEdge);
+        // Orthogonal Routing Layer
+        AdditionalLayer kmodelOrthoLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
+        kmodelOrthoLayer.setName("OrthogonalRoutingLayer");
+        kmodelOrthoLayer.setLabel("Orthogonal (Manhattan) Routing");
+        kmodelOrthoLayer.setActiveByDefault(false);
+        kmodelOrthoLayer.setOptional(true);
+
+        EdgeMapping orthoInstanceHasEdge = createKmodelEdgeMapping("OrthoInstanceContainmentEdge", true,
+                eObjectNode, EdgeRouting.MANHATTAN_LITERAL);
+        kmodelOrthoLayer.getEdgeMappings().add(orthoInstanceHasEdge);
+
+        EdgeMapping orthoInstanceKnowsEdge = createKmodelEdgeMapping("OrthoInstanceReferenceEdge", false,
+                eObjectNode, EdgeRouting.MANHATTAN_LITERAL);
+        kmodelOrthoLayer.getEdgeMappings().add(orthoInstanceKnowsEdge);
+        kmodelDiagram.getAdditionalLayers().add(kmodelOrthoLayer);
 
         // KModel TOOLS
-        buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode, instanceHasEdge, instanceKnowsEdge);
+        buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode,
+                instanceHasEdge, instanceKnowsEdge, orthoInstanceHasEdge, orthoInstanceKnowsEdge);
 
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();
@@ -320,6 +304,67 @@ public class OdesignGenerator {
         KarpfenLog.info("Successfully generated .odesign at: " + outputFile.getAbsolutePath());
     }
 
+    private static EdgeMapping createKmetaEdgeMapping(String name, boolean isContainment,
+            ContainerMapping eClassNode, EdgeRouting routing) {
+        EdgeMapping edge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        edge.setName(name);
+        edge.setDomainClass("ecore.EReference");
+        edge.setUseDomainElement(true);
+        edge.setSemanticCandidatesExpression(isContainment
+                ? "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | r.containment)"
+                : "aql:self.eClassifiers->filter(ecore::EClass).eStructuralFeatures->filter(ecore::EReference)->select(r | not(r.containment))");
+        edge.getSourceMapping().add(eClassNode);
+        edge.getTargetMapping().add(eClassNode);
+        edge.setSourceFinderExpression("aql:self.eContainingClass");
+        edge.setTargetFinderExpression("aql:self.eType");
+
+        EdgeStyleDescription style = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        style.setLineStyle(isContainment ? LineStyle.SOLID_LITERAL : LineStyle.DASH_LITERAL);
+        if (isContainment) {
+            style.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
+        }
+        style.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        style.setSizeComputationExpression("1");
+        style.setRoutingStyle(routing);
+        style.setEndsCentering(CenteringStyle.NONE);
+
+        CenterLabelStyleDescription labelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        labelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
+        labelStyle.setShowIcon(false);
+        style.setCenterLabelStyleDescription(labelStyle);
+        edge.setStyle(style);
+        return edge;
+    }
+
+    private static EdgeMapping createKmodelEdgeMapping(String name, boolean isContainment,
+            ContainerMapping eObjectNode, EdgeRouting routing) {
+        EdgeMapping edge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        edge.setName(name);
+        edge.setUseDomainElement(false);
+        edge.getSourceMapping().add(eObjectNode);
+        edge.getTargetMapping().add(eObjectNode);
+        edge.setTargetFinderExpression(isContainment ? "aql:self.eContents()" : "aql:self.eCrossReferences()");
+
+        EdgeStyleDescription style = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        style.setLineStyle(isContainment ? LineStyle.SOLID_LITERAL : LineStyle.DASH_LITERAL);
+        if (isContainment) {
+            style.setSourceArrow(EdgeArrows.FILL_DIAMOND_LITERAL);
+        }
+        style.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        style.setSizeComputationExpression("1");
+        style.setRoutingStyle(routing);
+        style.setEndsCentering(CenteringStyle.NONE);
+
+        CenterLabelStyleDescription labelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        labelStyle.setLabelExpression(isContainment
+                ? "aql:self.getInstanceContainmentLabel(view)"
+                : "aql:self.getInstanceReferenceLabel(view)");
+        labelStyle.setShowIcon(false);
+        style.setCenterLabelStyleDescription(labelStyle);
+        edge.setStyle(style);
+        return edge;
+    }
+
     private static void applyDirectEditMask(DirectEditLabel directEditTool,
             org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf) {
         EditMaskVariables mask = vtf.createEditMaskVariables();
@@ -329,7 +374,8 @@ public class OdesignGenerator {
 
     private static void buildKMetaToolSections(Layer defaultLayer,
             ContainerMapping eClassNode, NodeMapping attributeNode,
-            EdgeMapping hasEdge, EdgeMapping knowsEdge) {
+            EdgeMapping hasEdge, EdgeMapping knowsEdge,
+            EdgeMapping orthoHasEdge, EdgeMapping orthoKnowsEdge) {
 
         // alias for different toolfactroies
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
@@ -412,6 +458,7 @@ public class OdesignGenerator {
         editHasOp.setFirstModelOperations(editHasCtx);
         editHas.setInitialOperation(editHasOp);
         hasEdge.setLabelDirectEdit(editHas);
+        orthoHasEdge.setLabelDirectEdit(editHas);
         typesSection.getOwnedTools().add(editHas);
 
         DirectEditLabel editKnows = dtf.createDirectEditLabel();
@@ -423,6 +470,7 @@ public class OdesignGenerator {
         editKnowsOp.setFirstModelOperations(editKnowsCtx);
         editKnows.setInitialOperation(editKnowsOp);
         knowsEdge.setLabelDirectEdit(editKnows);
+        orthoKnowsEdge.setLabelDirectEdit(editKnows);
         typesSection.getOwnedTools().add(editKnows);
 
         ToolSection propSection = dtf.createToolSection();
@@ -431,11 +479,14 @@ public class OdesignGenerator {
         defaultLayer.getToolSections().add(propSection);
 
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString", 1));
+                .add(createPropertyTool(attributeNode, "String Property", "strProp", "ecore::EString",
+                        1));
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble", 1));
+                .add(createPropertyTool(attributeNode, "Number Property", "numProp", "ecore::EDouble",
+                        1));
         propSection.getOwnedTools()
-                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean", 1));
+                .add(createPropertyTool(attributeNode, "Boolean Property", "flag", "ecore::EBoolean",
+                        1));
         propSection.getOwnedTools()
                 .add(createPropertyTool(attributeNode, "List Property", "items", "ecore::EString", -1));
 
@@ -444,16 +495,21 @@ public class OdesignGenerator {
         relSection.setLabel("Relationships");
         defaultLayer.getToolSections().add(relSection);
 
-        relSection.getOwnedTools().add(createReferenceTool(hasEdge, "has (1:1 embedded)", "has_", true, 1));
         relSection.getOwnedTools()
-                .add(createReferenceTool(hasEdge, "has (1:N embedded list)", "has_list_", true, -1));
-        relSection.getOwnedTools().add(createReferenceTool(knowsEdge, "knows (1:1 link)", "knows_", false, 1));
+                .add(createReferenceTool(hasEdge, orthoHasEdge, "has (1:1 embedded)", "has_", true, 1));
         relSection.getOwnedTools()
-                .add(createReferenceTool(knowsEdge, "knows (1:N link list)", "knows_list_", false, -1));
+                .add(createReferenceTool(hasEdge, orthoHasEdge, "has (1:N embedded list)", "has_list_",
+                        true, -1));
+        relSection.getOwnedTools().add(
+                createReferenceTool(knowsEdge, orthoKnowsEdge, "knows (1:1 link)", "knows_", false, 1));
+        relSection.getOwnedTools()
+                .add(createReferenceTool(knowsEdge, orthoKnowsEdge, "knows (1:N link list)",
+                        "knows_list_", false, -1));
     }
 
     private static void buildKModelToolSections(Layer defaultLayer, ContainerMapping eObjectNode,
-            NodeMapping slotNode, EdgeMapping instanceHasEdge, EdgeMapping instanceKnowsEdge) {
+            NodeMapping slotNode, EdgeMapping instanceHasEdge, EdgeMapping instanceKnowsEdge,
+            EdgeMapping orthoInstanceHasEdge, EdgeMapping orthoInstanceKnowsEdge) {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
@@ -495,6 +551,7 @@ public class OdesignGenerator {
         editHasEdgeOp.setFirstModelOperations(editHasEdgeCtx);
         editHasEdge.setInitialOperation(editHasEdgeOp);
         instanceHasEdge.setLabelDirectEdit(editHasEdge);
+        orthoInstanceHasEdge.setLabelDirectEdit(editHasEdge);
         modelSection.getOwnedTools().add(editHasEdge);
 
         DirectEditLabel editKnowsEdge = dtf.createDirectEditLabel();
@@ -506,6 +563,7 @@ public class OdesignGenerator {
         editKnowsEdgeOp.setFirstModelOperations(editKnowsEdgeCtx);
         editKnowsEdge.setInitialOperation(editKnowsEdgeOp);
         instanceKnowsEdge.setLabelDirectEdit(editKnowsEdge);
+        orthoInstanceKnowsEdge.setLabelDirectEdit(editKnowsEdge);
         modelSection.getOwnedTools().add(editKnowsEdge);
 
         // Deletion tools (Slots are managed via <unset> direct-edit)
@@ -541,6 +599,7 @@ public class OdesignGenerator {
         delHasLinkOp.setFirstModelOperations(delHasLinkCtx);
         delHasLink.setInitialOperation(delHasLinkOp);
         instanceHasEdge.setDeletionDescription(delHasLink);
+        orthoInstanceHasEdge.setDeletionDescription(delHasLink);
         modelSection.getOwnedTools().add(delHasLink);
 
         DeleteElementDescription delKnowsLink = dtf.createDeleteElementDescription();
@@ -558,6 +617,7 @@ public class OdesignGenerator {
         delKnowsLinkOp.setFirstModelOperations(delKnowsLinkCtx);
         delKnowsLink.setInitialOperation(delKnowsLinkOp);
         instanceKnowsEdge.setDeletionDescription(delKnowsLink);
+        orthoInstanceKnowsEdge.setDeletionDescription(delKnowsLink);
         modelSection.getOwnedTools().add(delKnowsLink);
 
         // Object Relationships Palette Section
@@ -570,6 +630,7 @@ public class OdesignGenerator {
         createKnowsLinkTool.setName("CreateKnowsLink");
         createKnowsLinkTool.setLabel("knows (Reference Link)");
         createKnowsLinkTool.getEdgeMappings().add(instanceKnowsEdge);
+        createKnowsLinkTool.getEdgeMappings().add(orthoInstanceKnowsEdge);
         InitEdgeCreationOperation knowsLinkOp = vtf.createInitEdgeCreationOperation();
         ChangeContext knowsLinkCtx = vtf.createChangeContext();
         knowsLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, false)");
@@ -581,6 +642,7 @@ public class OdesignGenerator {
         createHasLinkTool.setName("CreateHasLink");
         createHasLinkTool.setLabel("has (Containment Link)");
         createHasLinkTool.getEdgeMappings().add(instanceHasEdge);
+        createHasLinkTool.getEdgeMappings().add(orthoInstanceHasEdge);
         InitEdgeCreationOperation hasLinkOp = vtf.createInitEdgeCreationOperation();
         ChangeContext hasLinkCtx = vtf.createChangeContext();
         hasLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, true)");
@@ -629,15 +691,17 @@ public class OdesignGenerator {
         return tool;
     }
 
-    private static EdgeCreationDescription createReferenceTool(EdgeMapping edgeMapping, String label, String prefix,
-            boolean isContainment, int upperBound) {
+    private static EdgeCreationDescription createReferenceTool(EdgeMapping straightEdge, EdgeMapping orthoEdge,
+            String label, String prefix, boolean isContainment, int upperBound) {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
         EdgeCreationDescription tool = dtf.createEdgeCreationDescription();
-        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-", ""));
+        tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-",
+                ""));
         tool.setLabel(label);
-        tool.getEdgeMappings().add(edgeMapping);
+        tool.getEdgeMappings().add(straightEdge);
+        tool.getEdgeMappings().add(orthoEdge);
 
         InitEdgeCreationOperation op = vtf.createInitEdgeCreationOperation();
         ChangeContext ctx = vtf.createChangeContext();
@@ -666,6 +730,7 @@ public class OdesignGenerator {
 
         createRef.getSubModelOperations().add(setName);
         createRef.getSubModelOperations().add(setType);
+        createRef.getSubModelOperations().add(setContainment);
         createRef.getSubModelOperations().add(setBound);
         ctx.getSubModelOperations().add(createRef);
         op.setFirstModelOperations(ctx);

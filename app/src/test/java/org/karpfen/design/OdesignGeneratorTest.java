@@ -1,6 +1,7 @@
 package org.karpfen.design;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,9 +15,16 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
+import org.eclipse.sirius.diagram.description.CenteringStyle;
+import org.eclipse.sirius.diagram.ContainerLayout;
+import org.eclipse.sirius.diagram.EdgeRouting;
+import org.eclipse.sirius.diagram.description.AdditionalLayer;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DescriptionPackage;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
+import org.eclipse.sirius.diagram.description.EdgeMapping;
+import org.eclipse.sirius.diagram.description.NodeMapping;
+import org.eclipse.sirius.diagram.description.style.FlatContainerStyleDescription;
 import org.eclipse.sirius.viewpoint.ViewpointPackage;
 import org.eclipse.sirius.viewpoint.description.Group;
 import org.eclipse.sirius.viewpoint.description.Viewpoint;
@@ -41,8 +49,9 @@ public class OdesignGeneratorTest {
         // Register the .odesign / .xmi file extension with the XMI resource factory
         Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put("odesign",
                 new XMIResourceFactoryImpl());
-        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap()
-                .put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl());
+        Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap().put(
+                Resource.Factory.Registry.DEFAULT_EXTENSION,
+                new XMIResourceFactoryImpl());
 
         // Register Sirius EPackages
         EPackage.Registry.INSTANCE.put(DescriptionPackage.eNS_URI, DescriptionPackage.eINSTANCE);
@@ -83,30 +92,96 @@ public class OdesignGeneratorTest {
         Viewpoint viewpoint = rootGroup.getOwnedViewpoints().get(0);
         assertEquals("KarpfenViewpoint", viewpoint.getName());
         assertEquals("Karpfen Visualizations", viewpoint.getLabel());
-        assertEquals(2, viewpoint.getOwnedRepresentations().size(), "odesign contains kmeta and kmodel viewpoints");
+        assertEquals(2, viewpoint.getOwnedRepresentations().size(),
+                "odesign must contain kmeta and kmodel viewpoints.");
 
         // KMeta
         DiagramDescription kmetaDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
+        assertEquals("ecore.EPackage", kmetaDiagram.getDomainClass());
+        assertNotNull(kmetaDiagram.getDefaultLayer());
         assertEquals(1, kmetaDiagram.getDefaultLayer().getContainerMappings().size());
         assertEquals(3, kmetaDiagram.getDefaultLayer().getToolSections().size());
+
+        ContainerMapping eClassNode = kmetaDiagram.getDefaultLayer().getContainerMappings().get(0);
+        assertEquals("EClassNode", eClassNode.getName());
+        assertEquals(ContainerLayout.LIST, eClassNode.getChildrenPresentation());
+        assertTrue(eClassNode.getStyle() instanceof FlatContainerStyleDescription);
+        FlatContainerStyleDescription classStyle = (FlatContainerStyleDescription) eClassNode.getStyle();
+        assertEquals("14", classStyle.getWidthComputationExpression());
+        assertEquals("4", classStyle.getHeightComputationExpression());
+
+        assertEquals(1, eClassNode.getSubNodeMappings().size());
+        NodeMapping attrNode = eClassNode.getSubNodeMappings().get(0);
+        assertEquals("EAttributeNode", attrNode.getName());
+
+        // Default Layer has 0 edges (edges live in switchable layers)
+        assertEquals(0, kmetaDiagram.getDefaultLayer().getEdgeMappings().size(),
+                "Default layer should hold 0 edges to allow clean switching");
+
+        // Additional Layers for KMeta (Straight vs Manhattan)
+        assertEquals(2, kmetaDiagram.getAdditionalLayers().size());
+
+        AdditionalLayer kmetaStraightLayer = kmetaDiagram.getAdditionalLayers().stream()
+                .filter(l -> l.getName().equals("StraightRoutingLayer")).findFirst().orElseThrow();
+        assertTrue(kmetaStraightLayer.isActiveByDefault());
+        assertTrue(kmetaStraightLayer.isOptional());
+        assertEquals(2, kmetaStraightLayer.getEdgeMappings().size());
+        EdgeMapping hasEdge = kmetaStraightLayer.getEdgeMappings().get(0);
+        assertEquals(EdgeRouting.STRAIGHT_LITERAL, hasEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, hasEdge.getStyle().getEndsCentering());
+
+        AdditionalLayer kmetaOrthoLayer = kmetaDiagram.getAdditionalLayers().stream()
+                .filter(l -> l.getName().equals("OrthogonalRoutingLayer")).findFirst().orElseThrow();
+        assertFalse(kmetaOrthoLayer.isActiveByDefault());
+        assertTrue(kmetaOrthoLayer.isOptional());
+        assertEquals(2, kmetaOrthoLayer.getEdgeMappings().size());
+        EdgeMapping orthoHasEdge = kmetaOrthoLayer.getEdgeMappings().get(0);
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, orthoHasEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, orthoHasEdge.getStyle().getEndsCentering());
 
         // KModel
         DiagramDescription kmodelDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
+        assertEquals("ecore.EObject", kmodelDiagram.getDomainClass());
+        assertNotNull(kmodelDiagram.getDefaultLayer());
         assertEquals(1, kmodelDiagram.getDefaultLayer().getContainerMappings().size());
         assertEquals(2, kmodelDiagram.getDefaultLayer().getToolSections().size());
-        assertEquals(2, kmodelDiagram.getDefaultLayer().getEdgeMappings().size());
 
         ContainerMapping eObjNode = kmodelDiagram.getDefaultLayer().getContainerMappings().get(0);
         assertEquals("EObjectNode", eObjNode.getName());
-        assertNotNull(eObjNode.getDeletionDescription(), "EObjectNode must have a deletion description");
+        assertEquals("aql:self.eAllContents()->including(self)", eObjNode.getSemanticCandidatesExpression());
+        assertNotNull(eObjNode.getDeletionDescription());
         assertEquals(1, eObjNode.getSubNodeMappings().size());
 
-        assertNotNull(kmodelDiagram.getDefaultLayer().getEdgeMappings().get(0).getDeletionDescription(),
-                "InstanceContainmentEdge must have deletion tool");
-        assertNotNull(kmodelDiagram.getDefaultLayer().getEdgeMappings().get(1).getDeletionDescription(),
-                "InstanceReferenceEdge must have deletion tool");
+        FlatContainerStyleDescription objStyle = (FlatContainerStyleDescription) eObjNode.getStyle();
+        assertEquals("16", objStyle.getWidthComputationExpression());
+        assertEquals("4", objStyle.getHeightComputationExpression());
+
+        // Default Layer has 0 edges
+        assertEquals(0, kmodelDiagram.getDefaultLayer().getEdgeMappings().size(),
+                "Default layer should hold 0 edges to allow clean switching");
+
+        // Additional Layers for KModel (Straight vs Manhattan)
+        assertEquals(2, kmodelDiagram.getAdditionalLayers().size());
+
+        AdditionalLayer kmodelStraightLayer = kmodelDiagram.getAdditionalLayers().stream()
+                .filter(l -> l.getName().equals("StraightRoutingLayer")).findFirst().orElseThrow();
+        assertTrue(kmodelStraightLayer.isActiveByDefault());
+        assertTrue(kmodelStraightLayer.isOptional());
+        assertEquals(2, kmodelStraightLayer.getEdgeMappings().size());
+        EdgeMapping instHasEdge = kmodelStraightLayer.getEdgeMappings().get(0);
+        assertEquals(EdgeRouting.STRAIGHT_LITERAL, instHasEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, instHasEdge.getStyle().getEndsCentering());
+
+        AdditionalLayer kmodelOrthoLayer = kmodelDiagram.getAdditionalLayers().stream()
+                .filter(l -> l.getName().equals("OrthogonalRoutingLayer")).findFirst().orElseThrow();
+        assertFalse(kmodelOrthoLayer.isActiveByDefault());
+        assertTrue(kmodelOrthoLayer.isOptional());
+        assertEquals(2, kmodelOrthoLayer.getEdgeMappings().size());
+        EdgeMapping orthoInstHasEdge = kmodelOrthoLayer.getEdgeMappings().get(0);
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, orthoInstHasEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, orthoInstHasEdge.getStyle().getEndsCentering());
     }
 
     @Test
