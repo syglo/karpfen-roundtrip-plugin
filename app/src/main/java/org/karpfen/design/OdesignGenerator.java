@@ -217,6 +217,7 @@ public class OdesignGenerator {
         kmodelDiagram.setName("KModelObjectDiagram");
         kmodelDiagram.setLabel("KModel Object Diagram");
         kmodelDiagram.setDomainClass("ecore.EObject");
+        kmodelDiagram.setPreconditionExpression("aql:self.isKModelRoot()");
         kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
         viewpoint.getOwnedRepresentations().add(kmodelDiagram);
 
@@ -294,6 +295,101 @@ public class OdesignGenerator {
         buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode,
                 instanceHasEdge, instanceKnowsEdge, orthoInstanceHasEdge, orthoInstanceKnowsEdge);
 
+        ///////
+        // !!! KStates statechart diagram
+        ///////
+        DiagramDescription kstatesDiagram = DescriptionFactory.eINSTANCE.createDiagramDescription();
+        kstatesDiagram.setName("KStatesDiagram");
+        kstatesDiagram.setLabel("KStates State Diagram");
+        kstatesDiagram.setDomainClass("ecore.EObject");
+        kstatesDiagram.setPreconditionExpression("aql:self.isKStatesRoot()");
+        kstatesDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
+        viewpoint.getOwnedRepresentations().add(kstatesDiagram);
+
+        Layer kstatesDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
+        kstatesDefaultLayer.setName("Default");
+        kstatesDefaultLayer.setLabel("Default");
+        kstatesDiagram.setDefaultLayer(kstatesDefaultLayer);
+
+        // State container node, list header, entry, do, sub-states
+        ContainerMapping stateNode = DescriptionFactory.eINSTANCE.createContainerMapping();
+        stateNode.setName("StateNode");
+        stateNode.setDomainClass("ecore.EObject");
+        stateNode.setSemanticCandidatesExpression(
+                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'State')");
+        stateNode.setChildrenPresentation(ContainerLayout.LIST);
+
+        FlatContainerStyleDescription stateStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
+        stateStyle.setLabelExpression("aql:self.getStateHeaderLabel()");
+        stateStyle.setLabelAlignment(LabelAlignment.LEFT);
+        stateStyle.setShowIcon(true);
+        stateStyle.setBorderSizeComputationExpression("1");
+        stateStyle.setWidthComputationExpression("18");
+        stateStyle.setHeightComputationExpression("5");
+        stateNode.setStyle(stateStyle);
+        kstatesDefaultLayer.getContainerMappings().add(stateNode);
+
+        // ENTRY action subnode
+        NodeMapping entryActionNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        entryActionNode.setName("EntryActionNode");
+        entryActionNode.setDomainClass("ecore.EObject");
+        entryActionNode.setSemanticCandidatesExpression(
+                "aql:if self.entryAction != null and self.entryAction != '' then Sequence{self} else Sequence{} endif");
+
+        NodeStyleDescription entryStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        entryStyle.setLabelExpression("aql:self.getEntryLabel()");
+        entryStyle.setShowIcon(false);
+        entryStyle.setLabelAlignment(LabelAlignment.LEFT);
+        entryStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        entryStyle.setBorderSizeComputationExpression("0");
+        entryStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        entryActionNode.setStyle(entryStyle);
+        stateNode.getSubNodeMappings().add(entryActionNode);
+
+        // DO action subnode
+        NodeMapping doActionNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        doActionNode.setName("DoActionNode");
+        doActionNode.setDomainClass("ecore.EObject");
+        doActionNode.setSemanticCandidatesExpression(
+                "aql:if self.doAction != null and self.doAction != '' then Sequence{self} else Sequence{} endif");
+
+        NodeStyleDescription doStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        doStyle.setLabelExpression("aql:self.getDoLabel()");
+        doStyle.setShowIcon(false);
+        doStyle.setLabelAlignment(LabelAlignment.LEFT);
+        doStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        doStyle.setBorderSizeComputationExpression("0");
+        doStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        doActionNode.setStyle(doStyle);
+        stateNode.getSubNodeMappings().add(doActionNode);
+
+        // Straight Routing Layer for Transitions
+        AdditionalLayer kstatesStraightLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
+        kstatesStraightLayer.setName("StraightRoutingLayer");
+        kstatesStraightLayer.setLabel("Direct (Straight) Routing");
+        kstatesStraightLayer.setActiveByDefault(true);
+        kstatesStraightLayer.setOptional(true);
+
+        EdgeMapping transitionEdge = createKstatesTransitionEdgeMapping("TransitionEdge", stateNode,
+                EdgeRouting.STRAIGHT_LITERAL);
+        kstatesStraightLayer.getEdgeMappings().add(transitionEdge);
+        kstatesDiagram.getAdditionalLayers().add(kstatesStraightLayer);
+
+        // Orthogonal Routing Layer for Transitions
+        AdditionalLayer kstatesOrthoLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
+        kstatesOrthoLayer.setName("OrthogonalRoutingLayer");
+        kstatesOrthoLayer.setLabel("Orthogonal (Manhattan) Routing");
+        kstatesOrthoLayer.setActiveByDefault(false);
+        kstatesOrthoLayer.setOptional(true);
+
+        EdgeMapping orthoTransitionEdge = createKstatesTransitionEdgeMapping("OrthoTransitionEdge", stateNode,
+                EdgeRouting.MANHATTAN_LITERAL);
+        kstatesOrthoLayer.getEdgeMappings().add(orthoTransitionEdge);
+        kstatesDiagram.getAdditionalLayers().add(kstatesOrthoLayer);
+
+        // KStates TOOLS
+        buildKStatesToolSections(kstatesDefaultLayer, stateNode, transitionEdge, orthoTransitionEdge);
+
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();
         URI fileUri = URI.createFileURI(outputFile.getAbsolutePath());
@@ -359,6 +455,34 @@ public class OdesignGenerator {
         labelStyle.setLabelExpression(isContainment
                 ? "aql:self.getInstanceContainmentLabel(view)"
                 : "aql:self.getInstanceReferenceLabel(view)");
+        labelStyle.setShowIcon(false);
+        style.setCenterLabelStyleDescription(labelStyle);
+        edge.setStyle(style);
+        return edge;
+    }
+
+    private static EdgeMapping createKstatesTransitionEdgeMapping(String name, ContainerMapping stateNode,
+            EdgeRouting routing) {
+        EdgeMapping edge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        edge.setName(name);
+        edge.setDomainClass("ecore.EObject");
+        edge.setUseDomainElement(true);
+        edge.setSemanticCandidatesExpression(
+                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'Transition')");
+        edge.getSourceMapping().add(stateNode);
+        edge.getTargetMapping().add(stateNode);
+        edge.setSourceFinderExpression("aql:self.sourceState");
+        edge.setTargetFinderExpression("aql:self.targetState");
+
+        EdgeStyleDescription style = StyleFactory.eINSTANCE.createEdgeStyleDescription();
+        style.setLineStyle(LineStyle.SOLID_LITERAL);
+        style.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
+        style.setSizeComputationExpression("1");
+        style.setRoutingStyle(routing);
+        style.setEndsCentering(CenteringStyle.NONE);
+
+        CenterLabelStyleDescription labelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
+        labelStyle.setLabelExpression("aql:self.getTransitionLabel()");
         labelStyle.setShowIcon(false);
         style.setCenterLabelStyleDescription(labelStyle);
         edge.setStyle(style);
@@ -649,6 +773,108 @@ public class OdesignGenerator {
         hasLinkOp.setFirstModelOperations(hasLinkCtx);
         createHasLinkTool.setInitialOperation(hasLinkOp);
         linkSection.getOwnedTools().add(createHasLinkTool);
+    }
+
+    private static void buildKStatesToolSections(Layer defaultLayer, ContainerMapping stateNode,
+            EdgeMapping transitionEdge, EdgeMapping orthoTransitionEdge) {
+        org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
+        org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
+
+        // States Management Section
+        ToolSection statesSection = dtf.createToolSection();
+        statesSection.setName("StatesSection");
+        statesSection.setLabel("States");
+        defaultLayer.getToolSections().add(statesSection);
+
+        ContainerCreationDescription createStateTool = dtf.createContainerCreationDescription();
+        createStateTool.setName("CreateStateTool");
+        createStateTool.setLabel("New State");
+        createStateTool.getContainerMappings().add(stateNode);
+
+        InitialNodeCreationOperation stateOp = vtf.createInitialNodeCreationOperation();
+        ChangeContext stateCtx = vtf.createChangeContext();
+        stateCtx.setBrowseExpression("aql:self.createState()");
+        stateOp.setFirstModelOperations(stateCtx);
+        createStateTool.setInitialOperation(stateOp);
+        statesSection.getOwnedTools().add(createStateTool);
+
+        OperationAction toggleInitialAction = vtf.createOperationAction();
+        toggleInitialAction.setName("ToggleInitialStateAction");
+        toggleInitialAction.setLabel("Toggle Initial State");
+        InitialOperation initOp = vtf.createInitialOperation();
+        ChangeContext initCtx = vtf.createChangeContext();
+        initCtx.setBrowseExpression("aql:self.toggleInitialState()");
+        initOp.setFirstModelOperations(initCtx);
+        toggleInitialAction.setInitialOperation(initOp);
+        statesSection.getOwnedTools().add(toggleInitialAction);
+
+        DirectEditLabel editStateName = dtf.createDirectEditLabel();
+        editStateName.setName("EditStateName");
+        applyDirectEditMask(editStateName, vtf);
+        InitialOperation editStateOp = vtf.createInitialOperation();
+        ChangeContext editStateCtx = vtf.createChangeContext();
+        editStateCtx.setBrowseExpression("aql:self.editStateName(arg0)");
+        editStateOp.setFirstModelOperations(editStateCtx);
+        editStateName.setInitialOperation(editStateOp);
+        stateNode.setLabelDirectEdit(editStateName);
+        statesSection.getOwnedTools().add(editStateName);
+
+        DeleteElementDescription delState = dtf.createDeleteElementDescription();
+        delState.setName("DeleteStateTool");
+        ElementDeleteVariable delStateElem = vtf.createElementDeleteVariable();
+        delStateElem.setName("element");
+        delState.setElement(delStateElem);
+        InitialOperation delStateOp = vtf.createInitialOperation();
+        ChangeContext delStateCtx = vtf.createChangeContext();
+        delStateCtx.setBrowseExpression("aql:element.deleteState()");
+        delStateOp.setFirstModelOperations(delStateCtx);
+        delState.setInitialOperation(delStateOp);
+        stateNode.setDeletionDescription(delState);
+        statesSection.getOwnedTools().add(delState);
+
+        // Transitions Management Section
+        ToolSection transitionsSection = dtf.createToolSection();
+        transitionsSection.setName("TransitionsSection");
+        transitionsSection.setLabel("Transitions");
+        defaultLayer.getToolSections().add(transitionsSection);
+
+        EdgeCreationDescription createTransTool = dtf.createEdgeCreationDescription();
+        createTransTool.setName("CreateTransition");
+        createTransTool.setLabel("Transition");
+        createTransTool.getEdgeMappings().add(transitionEdge);
+        createTransTool.getEdgeMappings().add(orthoTransitionEdge);
+        InitEdgeCreationOperation transLinkOp = vtf.createInitEdgeCreationOperation();
+        ChangeContext transLinkCtx = vtf.createChangeContext();
+        transLinkCtx.setBrowseExpression("aql:source.createTransitionLink(target)");
+        transLinkOp.setFirstModelOperations(transLinkCtx);
+        createTransTool.setInitialOperation(transLinkOp);
+        transitionsSection.getOwnedTools().add(createTransTool);
+
+        DirectEditLabel editGuard = dtf.createDirectEditLabel();
+        editGuard.setName("EditTransitionGuard");
+        applyDirectEditMask(editGuard, vtf);
+        InitialOperation editGuardOp = vtf.createInitialOperation();
+        ChangeContext editGuardCtx = vtf.createChangeContext();
+        editGuardCtx.setBrowseExpression("aql:self.editTransitionGuard(arg0)");
+        editGuardOp.setFirstModelOperations(editGuardCtx);
+        editGuard.setInitialOperation(editGuardOp);
+        transitionEdge.setLabelDirectEdit(editGuard);
+        orthoTransitionEdge.setLabelDirectEdit(editGuard);
+        transitionsSection.getOwnedTools().add(editGuard);
+
+        DeleteElementDescription delTrans = dtf.createDeleteElementDescription();
+        delTrans.setName("DeleteTransitionTool");
+        ElementDeleteVariable delTransElem = vtf.createElementDeleteVariable();
+        delTransElem.setName("element");
+        delTrans.setElement(delTransElem);
+        InitialOperation delTransOp = vtf.createInitialOperation();
+        ChangeContext delTransCtx = vtf.createChangeContext();
+        delTransCtx.setBrowseExpression("aql:element.deleteTransition()");
+        delTransOp.setFirstModelOperations(delTransCtx);
+        delTrans.setInitialOperation(delTransOp);
+        transitionEdge.setDeletionDescription(delTrans);
+        orthoTransitionEdge.setDeletionDescription(delTrans);
+        transitionsSection.getOwnedTools().add(delTrans);
     }
 
     private static NodeCreationDescription createPropertyTool(NodeMapping attributeNode, String label,

@@ -78,7 +78,7 @@ public class AntlrTokenScanner implements ITokenScanner {
         TextAttribute textAttribute = switch (fileExtension) {
             case "kmeta" -> mapKMetaToken(tokenType);
             case "kmodel" -> mapKmodelToken(tokenType);
-            // TODO: kstates
+            case "kstates" -> mapKstatesToken(tokenType);
             default -> new TextAttribute(colorManager.getColor(KarpfenColorManager.DEFAULT));
         };
         return new org.eclipse.jface.text.rules.Token(textAttribute);
@@ -105,6 +105,23 @@ public class AntlrTokenScanner implements ITokenScanner {
                 new TextAttribute(colorManager.getColor(KarpfenColorManager.KEYWORD), null, SWT.BOLD);
 
             case KmodelLexer.STRING ->
+                new TextAttribute(colorManager.getColor(KarpfenColorManager.STRING));
+
+            default ->
+                new TextAttribute(colorManager.getColor(KarpfenColorManager.DEFAULT));
+        };
+    }
+
+    private TextAttribute mapKstatesToken(int tokenType) {
+        return switch (tokenType) {
+            case KstatesLexer.STATEMACHINE, KstatesLexer.ATTACHED, KstatesLexer.TO,
+                    KstatesLexer.STATES, KstatesLexer.STATE, KstatesLexer.INITIAL,
+                    KstatesLexer.ENTRY, KstatesLexer.DO, KstatesLexer.TRANSITIONS,
+                    KstatesLexer.TRANSITION, KstatesLexer.NOT, KstatesLexer.LOOPING,
+                    KstatesLexer.CONDITION, KstatesLexer.MACROS, KstatesLexer.MACRO ->
+                new TextAttribute(colorManager.getColor(KarpfenColorManager.KEYWORD), null, SWT.BOLD);
+
+            case KstatesLexer.STRING ->
                 new TextAttribute(colorManager.getColor(KarpfenColorManager.STRING));
 
             default ->

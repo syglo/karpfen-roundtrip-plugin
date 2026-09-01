@@ -48,6 +48,38 @@ public class KarpfenDiagramServices {
     private record SourceTargetPair(EObject source, EObject target) {
     }
 
+    // Helpers to fix sirius view representation for root objects through sirius
+    // precondition expression.
+
+    public boolean isKModelRoot(EObject self) {
+        if (self == null)
+            return false;
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return false;
+        if (target.eContainer() != null)
+            return false;
+        if (target instanceof EPackage)
+            return false;
+
+        String className = target.eClass() != null ? target.eClass().getName() : "";
+        if ("StateMachine".equals(className) || "State".equals(className) || "Transition".equals(className)) {
+            return false;
+        }
+        return true;
+    }
+
+    public boolean isKStatesRoot(EObject self) {
+        if (self == null)
+            return false;
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return false;
+        if (target.eContainer() != null)
+            return false;
+        return target.eClass() != null && "StateMachine".equals(target.eClass().getName());
+    }
+
     // ! KMeta visual projections - UML class diagramm
 
     public String getKMetaClassLabel(EClass clas) {
@@ -899,6 +931,340 @@ public class KarpfenDiagramServices {
         EcoreUtil.delete(target, true);
         KarpfenLog.info("[Delete-KModel] Deleted object " + target);
         return container != null ? container : target;
+    }
+
+    // ! KStates visual projections - Statechart diagram
+
+    public String getStateHeaderLabel(EObject state) {
+        if (state == null)
+            return "State";
+        EStructuralFeature initFeat = state.eClass().getEStructuralFeature("isInitial");
+        Boolean isInit = (initFeat != null && state.eIsSet(initFeat)) ? (Boolean) state.eGet(initFeat) : false;
+
+        EStructuralFeature nameFeat = state.eClass().getEStructuralFeature("name");
+        String name = (nameFeat != null && state.eIsSet(nameFeat)) ? (String) state.eGet(nameFeat) : "State";
+
+        return (isInit != null && isInit) ? "<initial> " + name : name;
+    }
+
+    public String getEntryLabel(EObject state) {
+        if (state == null)
+            return "";
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("entryAction");
+        if (feat != null && state.eIsSet(feat)) {
+            String val = (String) state.eGet(feat);
+            if (val != null && !val.isBlank()) {
+                StringBuilder sb = new StringBuilder();
+                for (String line : val.split("\\R")) {
+                    String trimmed = line.trim();
+                    if (!trimmed.isBlank() && !trimmed.startsWith("//")) {
+                        if (!sb.isEmpty())
+                            sb.append("\n");
+                        sb.append("entry / ").append(trimmed);
+                    }
+                }
+                return sb.toString();
+            }
+        }
+        return "";
+    }
+
+    public String getDoLabel(EObject state) {
+        if (state == null)
+            return "";
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("doAction");
+        if (feat != null && state.eIsSet(feat)) {
+            String val = (String) state.eGet(feat);
+            if (val != null && !val.isBlank()) {
+                StringBuilder sb = new StringBuilder();
+                for (String line : val.split("\\R")) {
+                    String trimmed = line.trim();
+                    if (!trimmed.isBlank() && !trimmed.startsWith("//")) {
+                        if (!sb.isEmpty())
+                            sb.append("\n");
+                        sb.append("do / ").append(trimmed);
+                    }
+                }
+                return sb.toString();
+            }
+        }
+        return "";
+    }
+
+    public String getTransitionLabel(EObject transition) {
+        if (transition == null)
+            return "";
+        EStructuralFeature condFeat = transition.eClass().getEStructuralFeature("condition");
+        String cond = (condFeat != null && transition.eIsSet(condFeat)) ? (String) transition.eGet(condFeat) : "";
+
+        if (cond == null || cond.isBlank()) {
+            return "";
+        }
+
+        String clean = cond.replaceAll("\\s+", " ").trim();
+        if ("VALUE(\"true\")".equalsIgnoreCase(clean) || "true".equalsIgnoreCase(clean)
+                || "\"true\"".equalsIgnoreCase(clean)) {
+            return "";
+        }
+
+        // Clean EVAL { return $(x) ... } -> [x ...]
+        if (clean.startsWith("EVAL {")) {
+            clean = clean.substring(6, clean.length() - 1).trim();
+            if (clean.startsWith("return ")) {
+                clean = clean.substring(7).trim();
+            }
+        }
+
+        // Strip macro and variable wrappers $(...)
+        clean = clean.replace("$(", "").replace(")", "");
+        if (clean.startsWith("EVENT(\"public\",")) {
+            String eventName = clean.replace("EVENT(\"public\",", "").replace(")", "").replace("\"", "").trim();
+            return "EVENT(\"public\", \"" + eventName + "\")";
+        }
+
+        return "[" + clean + "]";
+    }
+
+    // ! KStates Direct Editing & Operations
+
+    public EObject editStateName(EObject state, String input) {
+        KarpfenLog.trace("DirectEdit-KStates", "editStateName called with input=[" + input + "]");
+        if (state == null || input == null || input.isBlank())
+            return state;
+        String raw = input.trim();
+        boolean makeInitial = raw.startsWith("<initial>") || raw.startsWith("INITIAL");
+        String cleanName = raw.replace("<initial>", "").replace("INITIAL", "").replace("STATE", "")
+                .replace("\"", "").trim();
+
+        EStructuralFeature nameFeat = state.eClass().getEStructuralFeature("name");
+        if (nameFeat != null) {
+            state.eSet(nameFeat, cleanName);
+        }
+
+        EStructuralFeature initFeat = state.eClass().getEStructuralFeature("isInitial");
+        if (initFeat != null && makeInitial) {
+            state.eSet(initFeat, true);
+        }
+
+        markTargetResourceDirty(state);
+        return state;
+    }
+
+    public EObject editTransitionGuard(EObject transition, String input) {
+        KarpfenLog.trace("DirectEdit-KStates", "editTransitionGuard called with input=[" + input + "]");
+        if (transition == null || input == null)
+            return transition;
+
+        String raw = input.trim();
+        EStructuralFeature condFeat = transition.eClass().getEStructuralFeature("condition");
+        EStructuralFeature loopFeat = transition.eClass().getEStructuralFeature("notLooping");
+
+        if ("<unset>".equalsIgnoreCase(raw) || "unset".equalsIgnoreCase(raw) || raw.isBlank()) {
+            if (condFeat != null)
+                transition.eUnset(condFeat);
+            if (loopFeat != null)
+                transition.eSet(loopFeat, false);
+        } else {
+            boolean isNotLooping = raw.toUpperCase().contains("NOT LOOPING");
+            String cleanCond = raw.replace("[NOT LOOPING]", "").replace("NOT LOOPING", "")
+                    .replace("[", "").replace("]", "").trim();
+
+            if (loopFeat != null) {
+                transition.eSet(loopFeat, isNotLooping);
+            }
+            if (condFeat != null) {
+                transition.eSet(condFeat, cleanCond);
+            }
+        }
+
+        markTargetResourceDirty(transition);
+        return transition;
+    }
+
+    public EObject toggleInitialState(EObject state) {
+        if (state == null)
+            return state;
+        EStructuralFeature initFeat = state.eClass().getEStructuralFeature("isInitial");
+        if (initFeat != null) {
+            Boolean current = (Boolean) state.eGet(initFeat);
+            state.eSet(initFeat, current == null || !current);
+            markTargetResourceDirty(state);
+        }
+        return state;
+    }
+
+    public EObject createTransitionLink(EObject source, EObject target) {
+        EObject src = resolveSemanticTarget(source);
+        EObject tgt = resolveSemanticTarget(target);
+        if (src == null || tgt == null)
+            return source;
+
+        // Traverse to root StateMachine
+        EObject root = src;
+        while (root.eContainer() != null) {
+            root = root.eContainer();
+        }
+
+        EStructuralFeature transFeat = root.eClass().getEStructuralFeature("transitions");
+        if (transFeat instanceof EReference transRef && transRef.getEType() instanceof EClass transClass) {
+            EObject newTrans = transClass.getEPackage().getEFactoryInstance().create(transClass);
+            newTrans.eSet(transClass.getEStructuralFeature("sourceState"), src);
+            newTrans.eSet(transClass.getEStructuralFeature("targetState"), tgt);
+
+            String srcName = (String) src.eGet(src.eClass().getEStructuralFeature("name"));
+            String tgtName = (String) tgt.eGet(tgt.eClass().getEStructuralFeature("name"));
+            newTrans.eSet(transClass.getEStructuralFeature("name"), srcName + " -> " + tgtName);
+
+            @SuppressWarnings("unchecked")
+            List<EObject> list = (List<EObject>) root.eGet(transFeat);
+            list.add(newTrans);
+            markTargetResourceDirty(root);
+            KarpfenLog.info("[Palette-KStates] Created transition: " + srcName + " -> " + tgtName);
+        }
+        return source;
+    }
+
+    public EObject createState(EObject container) {
+        EObject target = resolveSemanticTarget(container);
+        if (target == null)
+            return container;
+
+        EObject root = target;
+        while (root.eContainer() != null) {
+            root = root.eContainer();
+        }
+
+        EStructuralFeature statesFeat = root.eClass().getEStructuralFeature("states");
+        if (statesFeat instanceof EReference statesRef && statesRef.getEType() instanceof EClass stateClass) {
+            EObject newState = stateClass.getEPackage().getEFactoryInstance().create(stateClass);
+            @SuppressWarnings("unchecked")
+            List<EObject> statesList = (List<EObject>) root.eGet(statesFeat);
+            int idx = 1;
+            java.util.Set<String> existing = new java.util.HashSet<>();
+            if (statesList != null) {
+                for (EObject s : statesList) {
+                    String n = (String) s.eGet(s.eClass().getEStructuralFeature("name"));
+                    if (n != null)
+                        existing.add(n);
+                }
+            }
+            while (existing.contains("State_" + idx)) {
+                idx++;
+            }
+            String finalName = "State_" + idx;
+            newState.eSet(stateClass.getEStructuralFeature("name"), finalName);
+            newState.eSet(stateClass.getEStructuralFeature("isInitial"), statesList == null || statesList.isEmpty());
+            if (statesList != null) {
+                statesList.add(newState);
+            }
+            markTargetResourceDirty(root);
+            KarpfenLog.info("[Palette-KStates] Created new state: " + finalName);
+            return newState;
+        }
+        return target;
+    }
+
+    public EObject deleteState(EObject self) {
+        if (self == null)
+            return null;
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return self;
+
+        // Safety to prevent accidental deletion of the entire state machine
+        if (target.eClass() != null && "StateMachine".equalsIgnoreCase(target.eClass().getName())) {
+            KarpfenLog.warn("[Delete-KStates] Refused to delete root StateMachine as a state!");
+            return target;
+        }
+
+        EObject root = target;
+        while (root.eContainer() != null) {
+            root = root.eContainer();
+        }
+
+        // Remove transitions referencing this state
+        EStructuralFeature transFeat = root.eClass().getEStructuralFeature("transitions");
+        if (transFeat != null) {
+            @SuppressWarnings("unchecked")
+            List<EObject> transList = (List<EObject>) root.eGet(transFeat);
+            if (transList != null) {
+                transList.removeIf(t -> {
+                    Object s = t.eGet(t.eClass().getEStructuralFeature("sourceState"));
+                    Object d = t.eGet(t.eClass().getEStructuralFeature("targetState"));
+                    return s == target || d == target;
+                });
+            }
+        }
+
+        EObject container = target.eContainer();
+        EReference contFeature = target.eContainmentFeature();
+        if (container != null && contFeature != null) {
+            if (contFeature.isMany()) {
+                @SuppressWarnings("unchecked")
+                List<EObject> list = (List<EObject>) container.eGet(contFeature);
+                if (list != null) {
+                    list.remove(target);
+                }
+            } else {
+                container.eUnset(contFeature);
+            }
+            markTargetResourceDirty(container);
+        } else {
+            markTargetResourceDirty(root);
+        }
+
+        EcoreUtil.delete(target, true);
+        KarpfenLog.info("[Delete-KStates] Deleted state " + target);
+        return container != null ? container : root;
+    }
+
+    public EObject deleteTransition(EObject self) {
+        if (self == null)
+            return null;
+        EObject target = resolveSemanticTarget(self);
+        if (target == null)
+            return self;
+
+        // Safety to prevent accidental deletion of the entire state machine
+        if (target.eClass() != null && "StateMachine".equalsIgnoreCase(target.eClass().getName())) {
+            KarpfenLog.warn("[Delete-KStates] Refused to delete root StateMachine as a transition!");
+            return target;
+        }
+
+        EObject root = target;
+        while (root.eContainer() != null) {
+            root = root.eContainer();
+        }
+
+        EStructuralFeature transFeat = root.eClass().getEStructuralFeature("transitions");
+        if (transFeat != null) {
+            @SuppressWarnings("unchecked")
+            List<EObject> transList = (List<EObject>) root.eGet(transFeat);
+            if (transList != null) {
+                transList.remove(target);
+            }
+        }
+
+        EObject container = target.eContainer();
+        EReference contFeature = target.eContainmentFeature();
+        if (container != null && contFeature != null) {
+            if (contFeature.isMany()) {
+                @SuppressWarnings("unchecked")
+                List<EObject> list = (List<EObject>) container.eGet(contFeature);
+                if (list != null) {
+                    list.remove(target);
+                }
+            } else {
+                container.eUnset(contFeature);
+            }
+            markTargetResourceDirty(container);
+        } else {
+            markTargetResourceDirty(root);
+        }
+
+        EcoreUtil.delete(target, true);
+        KarpfenLog.info("[Delete-KStates] Deleted transition " + target);
+        return container != null ? container : root;
     }
 
     // Hack to mark open files dirty, required for synchronization

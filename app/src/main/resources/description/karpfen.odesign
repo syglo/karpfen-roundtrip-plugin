@@ -221,7 +221,7 @@
         </edgeMappings>
       </additionalLayers>
     </ownedRepresentations>
-    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject">
+    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KModelObjectDiagram" label="KModel Object Diagram" domainClass="ecore.EObject" preconditionExpression="aql:self.isKModelRoot()">
       <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
       <defaultLayer name="Default" label="Default">
         <containerMappings name="EObjectNode" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteObjectTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KModelObjectDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditObjectHeader']" semanticCandidatesExpression="aql:self.eAllContents()->including(self)" domainClass="ecore.EObject" childrenPresentation="List">
@@ -341,6 +341,107 @@
           <style lineStyle="dash" routingStyle="manhattan">
             <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
             <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getInstanceReferenceLabel(view)">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+      </additionalLayers>
+    </ownedRepresentations>
+    <ownedRepresentations xsi:type="description_1:DiagramDescription" name="KStatesDiagram" label="KStates State Diagram" domainClass="ecore.EObject" preconditionExpression="aql:self.isKStatesRoot()">
+      <metamodel href="http://www.eclipse.org/emf/2002/Ecore#/"/>
+      <defaultLayer name="Default" label="Default">
+        <containerMappings name="StateNode" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='DeleteStateTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@toolSections.0/@ownedTools[name='EditStateName']" semanticCandidatesExpression="aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'State')" domainClass="ecore.EObject" childrenPresentation="List">
+          <subNodeMappings name="EntryActionNode" semanticCandidatesExpression="aql:if self.entryAction != null and self.entryAction != '' then Sequence{self} else Sequence{} endif" domainClass="ecore.EObject">
+            <style xsi:type="style:SquareDescription" showIcon="false" labelExpression="aql:self.getEntryLabel()" labelAlignment="LEFT" labelPosition="node">
+              <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+              <color xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            </style>
+          </subNodeMappings>
+          <subNodeMappings name="DoActionNode" semanticCandidatesExpression="aql:if self.doAction != null and self.doAction != '' then Sequence{self} else Sequence{} endif" domainClass="ecore.EObject">
+            <style xsi:type="style:SquareDescription" showIcon="false" labelExpression="aql:self.getDoLabel()" labelAlignment="LEFT" labelPosition="node">
+              <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+              <color xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            </style>
+          </subNodeMappings>
+          <style xsi:type="style:FlatContainerStyleDescription" borderSizeComputationExpression="1" labelExpression="aql:self.getStateHeaderLabel()" labelAlignment="LEFT" widthComputationExpression="18" heightComputationExpression="5">
+            <borderColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            <backgroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='white']"/>
+            <foregroundColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='light_gray']"/>
+          </style>
+        </containerMappings>
+        <toolSections name="StatesSection" label="States">
+          <ownedTools xsi:type="tool:ContainerCreationDescription" name="CreateStateTool" label="New State" containerMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@containerMappings[name='StateNode']">
+            <variable name="container"/>
+            <viewVariable name="containerView"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:self.createState()"/>
+            </initialOperation>
+          </ownedTools>
+          <ownedTools xsi:type="tool_1:OperationAction" name="ToggleInitialStateAction" label="Toggle Initial State">
+            <view name="views"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:self.toggleInitialState()"/>
+            </initialOperation>
+          </ownedTools>
+          <ownedTools xsi:type="tool:DirectEditLabel" name="EditStateName">
+            <mask mask="{0}"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:self.editStateName(arg0)"/>
+            </initialOperation>
+          </ownedTools>
+          <ownedTools xsi:type="tool:DeleteElementDescription" name="DeleteStateTool">
+            <element name="element"/>
+            <elementView name="elementView"/>
+            <containerView name="containerView"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:element.deleteState()"/>
+            </initialOperation>
+          </ownedTools>
+        </toolSections>
+        <toolSections name="TransitionsSection" label="Transitions">
+          <ownedTools xsi:type="tool:EdgeCreationDescription" name="CreateTransition" label="Transition" edgeMappings="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@additionalLayers[name='StraightRoutingLayer']/@edgeMappings[name='TransitionEdge'] //@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@additionalLayers[name='OrthogonalRoutingLayer']/@edgeMappings[name='OrthoTransitionEdge']">
+            <sourceVariable name="source"/>
+            <targetVariable name="target"/>
+            <sourceViewVariable name="sourceView"/>
+            <targetViewVariable name="targetView"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:source.createTransitionLink(target)"/>
+            </initialOperation>
+          </ownedTools>
+          <ownedTools xsi:type="tool:DirectEditLabel" name="EditTransitionGuard">
+            <mask mask="{0}"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:self.editTransitionGuard(arg0)"/>
+            </initialOperation>
+          </ownedTools>
+          <ownedTools xsi:type="tool:DeleteElementDescription" name="DeleteTransitionTool">
+            <element name="element"/>
+            <elementView name="elementView"/>
+            <containerView name="containerView"/>
+            <initialOperation>
+              <firstModelOperations xsi:type="tool_1:ChangeContext" browseExpression="aql:element.deleteTransition()"/>
+            </initialOperation>
+          </ownedTools>
+        </toolSections>
+      </defaultLayer>
+      <additionalLayers name="StraightRoutingLayer" label="Direct (Straight) Routing" activeByDefault="true">
+        <edgeMappings name="TransitionEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@toolSections.1/@ownedTools[name='DeleteTransitionTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@toolSections.1/@ownedTools[name='EditTransitionGuard']" semanticCandidatesExpression="aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'Transition')" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@containerMappings[name='StateNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@containerMappings[name='StateNode']" targetFinderExpression="aql:self.targetState" sourceFinderExpression="aql:self.sourceState" domainClass="ecore.EObject" useDomainElement="true">
+          <style>
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getTransitionLabel()">
+              <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
+            </centerLabelStyleDescription>
+          </style>
+        </edgeMappings>
+      </additionalLayers>
+      <additionalLayers name="OrthogonalRoutingLayer" label="Orthogonal (Manhattan) Routing">
+        <edgeMappings name="OrthoTransitionEdge" deletionDescription="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@toolSections.1/@ownedTools[name='DeleteTransitionTool']" labelDirectEdit="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@toolSections.1/@ownedTools[name='EditTransitionGuard']" semanticCandidatesExpression="aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'Transition')" sourceMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@containerMappings[name='StateNode']" targetMapping="//@ownedViewpoints[name='KarpfenViewpoint']/@ownedRepresentations[name='KStatesDiagram']/@defaultLayer/@containerMappings[name='StateNode']" targetFinderExpression="aql:self.targetState" sourceFinderExpression="aql:self.sourceState" domainClass="ecore.EObject" useDomainElement="true">
+          <style routingStyle="manhattan">
+            <strokeColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='gray']"/>
+            <centerLabelStyleDescription showIcon="false" labelExpression="aql:self.getTransitionLabel()">
               <labelColor xsi:type="description:SystemColor" href="environment:/viewpoint#/0/@systemColors/@entries[name='black']"/>
             </centerLabelStyleDescription>
           </style>

@@ -197,6 +197,8 @@ public class AcceleoRunner {
                 return KarpfenDslFormatter.formatKMeta(rawGenerated);
             } else if (outputFilename.endsWith(".kmodel")) {
                 return KarpfenDslFormatter.formatKModel(rawGenerated);
+            } else if (outputFilename.endsWith(".kstates")) {
+                return KarpfenDslFormatter.formatKStates(rawGenerated);
             }
             // TODO: throw error, unknown file extension.
             return rawGenerated;

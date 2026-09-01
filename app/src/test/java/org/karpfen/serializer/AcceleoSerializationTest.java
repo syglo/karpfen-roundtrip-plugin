@@ -20,16 +20,20 @@ import org.junit.jupiter.api.Test;
 import org.karpfen.resource.KarpfenResourceInitializer;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 import org.karpfen.transformer.KModelToEcoreInstanceTransformer;
+import org.karpfen.transformer.KStatesToEcoreTransformer;
 
 import dsl.textual.KmetaDSLConverter;
 import dsl.textual.KmodelDSLConverter;
+import dsl.textual.KstatesDSLConverter;
 import instance.Model;
 import meta.Metamodel;
+import states.StateMachine;
 
 public class AcceleoSerializationTest {
 
     private static File kmetaFile;
     private static File kmodelFile;
+    private static File kstatesFile;
 
     @BeforeAll
     static void setUp() {
@@ -40,9 +44,13 @@ public class AcceleoSerializationTest {
                 .toFile();
         kmodelFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmodel").normalize()
                 .toFile();
+        kstatesFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kstates").normalize()
+                .toFile();
 
         assertTrue(kmetaFile.exists(), "cleaning_robot.kmeta should exist: " + kmetaFile.getAbsolutePath());
         assertTrue(kmodelFile.exists(), "cleaning_robot.kmodel should exist: " + kmodelFile.getAbsolutePath());
+        assertTrue(kstatesFile.exists(),
+                "cleaning_robot.kstates should exist: " + kstatesFile.getAbsolutePath());
     }
 
     @Test
@@ -122,5 +130,42 @@ public class AcceleoSerializationTest {
         assertEquals(1, reparsedModel.getObjects().size());
         assertEquals("APB 2101", reparsedModel.getObjects().get(0).getId());
         assertEquals("Room", reparsedModel.getObjects().get(0).getOfType().getName());
+    }
+
+    @Test
+    void testKStatesRoundtrip() throws IOException {
+        String originalKStatesText = Files.readString(kstatesFile.toPath(), StandardCharsets.UTF_8);
+
+        // text -> karpfen ast
+        StateMachine originalAST = KstatesDSLConverter.INSTANCE.parseKstatesString(originalKStatesText);
+        assertNotNull(originalAST);
+        assertEquals("Robot", originalAST.getAttachedToClass());
+        assertEquals(3, originalAST.getStates().size(), "ready, observe, drive");
+        assertEquals(7, originalAST.getTransitions().size());
+        assertEquals(7, originalAST.getMacros().size());
+
+        // karpfen ast -> EMF
+        KStatesToEcoreTransformer transformer = new KStatesToEcoreTransformer();
+        EObject smObj = transformer.transform(originalAST, "cleaning_robot_states");
+        assertNotNull(smObj);
+
+        // EMF acceleo -> text
+        AcceleoKStatesSerializer acceleoSerializer = new AcceleoKStatesSerializer();
+        String generatedKStates = acceleoSerializer.serialize(smObj);
+        assertNotNull(generatedKStates);
+        assertFalse(generatedKStates.isBlank());
+
+        // debug in build/test-outputs
+        Path testOutputDir = Path.of("build/test-outputs");
+        Files.createDirectories(testOutputDir);
+        Files.writeString(testOutputDir.resolve("acceleo_cleaning_robot.kstates"), generatedKStates,
+                StandardCharsets.UTF_8);
+
+        // load acceleo generated text and compare asts
+        StateMachine reparsedAST = KstatesDSLConverter.INSTANCE.parseKstatesString(generatedKStates);
+        assertEquals(originalAST.getAttachedToClass(), reparsedAST.getAttachedToClass());
+        assertEquals(originalAST.getStates().size(), reparsedAST.getStates().size());
+        assertEquals(originalAST.getTransitions().size(), reparsedAST.getTransitions().size());
+        assertEquals(originalAST.getMacros().size(), reparsedAST.getMacros().size());
     }
 }

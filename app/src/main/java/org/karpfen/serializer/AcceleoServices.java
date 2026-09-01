@@ -333,6 +333,258 @@ public class AcceleoServices {
         return Collections.emptyList();
     }
 
+    // !!! KStates Services helpers for .mtl
+
+    public String getSmAttachedClass(EObject sm) {
+        if (sm == null)
+            return "Object";
+        EStructuralFeature feat = sm.eClass().getEStructuralFeature("attachedToClass");
+        if (feat != null && sm.eIsSet(feat)) {
+            Object val = sm.eGet(feat);
+            if (val != null)
+                return val.toString();
+        }
+        return "Object";
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<EObject> getSmStates(EObject sm) {
+        if (sm == null)
+            return Collections.emptyList();
+        EStructuralFeature feat = sm.eClass().getEStructuralFeature("states");
+        if (feat != null && sm.eIsSet(feat)) {
+            Object val = sm.eGet(feat);
+            if (val instanceof List<?> list) {
+                return (List<EObject>) list;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<EObject> getSmTransitions(EObject sm) {
+        if (sm == null)
+            return Collections.emptyList();
+        EStructuralFeature feat = sm.eClass().getEStructuralFeature("transitions");
+        if (feat != null && sm.eIsSet(feat)) {
+            Object val = sm.eGet(feat);
+            if (val instanceof List<?> list) {
+                return (List<EObject>) list;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    public boolean hasMacros(EObject sm) {
+        return !getSmMacros(sm).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> getSmMacros(EObject sm) {
+        if (sm == null)
+            return Collections.emptyList();
+        EStructuralFeature feat = sm.eClass().getEStructuralFeature("macros");
+        if (feat != null && sm.eIsSet(feat)) {
+            Object val = sm.eGet(feat);
+            if (val instanceof List<?> list) {
+                return (List<String>) list;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    public String getStateName(EObject state) {
+        if (state == null)
+            return "State";
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("name");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            if (val != null)
+                return val.toString();
+        }
+        return "State";
+    }
+
+    public boolean isInitialState(EObject state) {
+        if (state == null)
+            return false;
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("isInitial");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            if (val instanceof Boolean b)
+                return b;
+        }
+        return false;
+    }
+
+    public boolean hasEntryAction(EObject state) {
+        if (state == null)
+            return false;
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("entryAction");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            return val != null && !val.toString().isBlank();
+        }
+        return false;
+    }
+
+    public String getStateEntryAction(EObject state) {
+        if (state == null)
+            return "";
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("entryAction");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            if (val != null)
+                return val.toString();
+        }
+        return "";
+    }
+
+    public boolean hasDoAction(EObject state) {
+        if (state == null)
+            return false;
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("doAction");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            return val != null && !val.toString().isBlank();
+        }
+        return false;
+    }
+
+    public String getStateDoAction(EObject state) {
+        if (state == null)
+            return "";
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("doAction");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            if (val != null)
+                return val.toString();
+        }
+        return "";
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<EObject> getInnerStates(EObject state) {
+        if (state == null)
+            return Collections.emptyList();
+        EStructuralFeature feat = state.eClass().getEStructuralFeature("innerStates");
+        if (feat != null && state.eIsSet(feat)) {
+            Object val = state.eGet(feat);
+            if (val instanceof List<?> list) {
+                return (List<EObject>) list;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    public String getSourceStateName(EObject trans) {
+        if (trans == null)
+            return "_";
+        EStructuralFeature feat = trans.eClass().getEStructuralFeature("sourceState");
+        if (feat != null && trans.eIsSet(feat)) {
+            Object val = trans.eGet(feat);
+            if (val instanceof EObject src) {
+                return getStateName(src);
+            }
+        }
+        return "_";
+    }
+
+    public String getTargetStateName(EObject trans) {
+        if (trans == null)
+            return "_";
+        EStructuralFeature feat = trans.eClass().getEStructuralFeature("targetState");
+        if (feat != null && trans.eIsSet(feat)) {
+            Object val = trans.eGet(feat);
+            if (val instanceof EObject tgt) {
+                return getStateName(tgt);
+            }
+        }
+        return "_";
+    }
+
+    public boolean isNotLooping(EObject trans) {
+        if (trans == null)
+            return false;
+        EStructuralFeature feat = trans.eClass().getEStructuralFeature("notLooping");
+        if (feat != null && trans.eIsSet(feat)) {
+            Object val = trans.eGet(feat);
+            if (val instanceof Boolean b)
+                return b;
+        }
+        return false;
+    }
+
+    public boolean hasCondition(EObject trans) {
+        if (trans == null)
+            return false;
+        EStructuralFeature feat = trans.eClass().getEStructuralFeature("condition");
+        if (feat != null && trans.eIsSet(feat)) {
+            Object val = trans.eGet(feat);
+            return val != null && !val.toString().isBlank();
+        }
+        return false;
+    }
+
+    public String getTransitionCondition(EObject trans) {
+        if (trans == null)
+            return "";
+        EStructuralFeature feat = trans.eClass().getEStructuralFeature("condition");
+        if (feat != null && trans.eIsSet(feat)) {
+            Object val = trans.eGet(feat);
+            if (val != null)
+                return val.toString();
+        }
+        return "";
+    }
+
+    public String indentLines(String text, String indent) {
+        if (text == null || text.isBlank())
+            return "";
+        StringBuilder sb = new StringBuilder();
+        String[] lines = text.split("\\R");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (!line.isBlank()) {
+                sb.append(indent).append(line.trim());
+            }
+            if (i < lines.length - 1) {
+                sb.append("\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    public String indentMacro(String macroText, String indent) {
+        if (macroText == null || macroText.isBlank())
+            return "";
+        StringBuilder sb = new StringBuilder();
+        String[] lines = macroText.split("\\R");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (!line.isBlank()) {
+                sb.append(indent).append(line);
+            }
+            if (i < lines.length - 1) {
+                sb.append("\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    public String getFormattedMacrosBlock(EObject sm, String indent) {
+        List<String> macros = getSmMacros(sm);
+        if (macros.isEmpty())
+            return "";
+        StringBuilder sb = new StringBuilder();
+        sb.append("\n").append(indent).append("MACROS {\n");
+        for (String m : macros) {
+            sb.append(indentMacro(m, indent.concat("    "))).append("\n");
+        }
+        sb.append(indent).append("}");
+        return sb.toString();
+    }
+
     private EClass resolveEClass(EObject obj) {
         if (obj == null)
             return null;

@@ -1,0 +1,60 @@
+[comment encoding = UTF-8 /]
+[module generateKStates('https://eclipse.dev/emf/')/]
+
+[import org::karpfen::serializer::AcceleoServices/]
+
+[comment @main /]
+[template public generateKStates(sm : ecore::EObject)]
+  [file ('output.kstates', overwrite, 'UTF-8')]
+    STATEMACHINE ATTACHED TO "[sm.getSmAttachedClass()/]" {
+        STATES {
+        [for (state : ecore::EObject | sm.getSmStates())]
+            [state.generateState('    ')/]
+        [/for]
+        }
+
+        TRANSITIONS {
+        [for (t : ecore::EObject | sm.getSmTransitions())]
+            [t.generateTransition('    ')/]
+        [/for]
+        }
+        [if (sm.hasMacros())]
+          MACROS {
+          [for (m : String | sm.getSmMacros())]
+            [m.indentMacro('    ')/]
+          [/for]
+          }
+        [/if]
+    }
+  [/file]
+[/template]
+
+[template public generateState(state : ecore::EObject, indent : String)]
+  [indent/][if (state.isInitialState())]INITIAL [/if]STATE "[state.getStateName()/]" {
+  [if (state.hasEntryAction())]
+    [indent/]    ENTRY {
+    [state.getStateEntryAction().indentLines(indent.concat('        '))/]
+    [indent/]    }
+  [/if]
+  [if (state.hasDoAction())]
+    [indent/]    DO {
+    [state.getStateDoAction().indentLines(indent.concat('        '))/]
+    [indent/]    }
+  [/if]
+  [for (child : ecore::EObject | state.getInnerStates())]
+    [child.generateState(indent.concat('    '))/]
+  [/for]
+  [indent/]}
+[/template]
+
+[template public generateTransition(t : ecore::EObject, indent : String)]
+  [if (t.hasCondition())]
+    [indent/]TRANSITION "[t.getSourceStateName()/]" -> "[t.getTargetStateName()/]"[if (t.isNotLooping())] NOT LOOPING[/if] {
+    [indent/]    CONDITION {
+    [t.getTransitionCondition().indentLines(indent.concat('        '))/]
+    [indent/]    }
+    [indent/]}
+  [else]
+    [indent/]TRANSITION "[t.getSourceStateName()/]" -> "[t.getTargetStateName()/]"[if (t.isNotLooping())] NOT LOOPING[/if] { }
+  [/if]
+[/template]

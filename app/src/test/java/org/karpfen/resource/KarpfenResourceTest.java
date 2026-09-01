@@ -87,11 +87,9 @@ public class KarpfenResourceTest {
         assertInstanceOf(KstatesResource.class, resource);
         assertEquals(1, resource.getContents().size());
 
-        EPackage statePackage = (EPackage) resource.getContents().get(0);
-        assertNotNull(statePackage);
-        assertEquals(1, statePackage.getEClassifiers().size());
-
-        EClass smClass = (EClass) statePackage.getEClassifiers().get(0);
-        assertEquals("StateMachine_Robot", smClass.getName());
+        EObject rootSm = resource.getContents().get(0);
+        assertNotNull(rootSm);
+        assertEquals("StateMachine", rootSm.eClass().getName());
+        assertEquals("Robot", rootSm.eGet(rootSm.eClass().getEStructuralFeature("attachedToClass")));
     }
 }

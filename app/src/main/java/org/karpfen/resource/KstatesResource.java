@@ -6,12 +6,18 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.emf.common.util.URI;
-import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
-import org.eclipse.emf.ecore.EcoreFactory;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
 import org.karpfen.design.KarpfenLog;
+import org.karpfen.serializer.EcoreToKStatesManualSerializer;
+import org.karpfen.serializer.KarpfenDslFormatter;
+import org.karpfen.transformer.KStatesToEcoreTransformer;
 
 import dsl.textual.KstatesDSLConverter;
 import states.StateMachine;
@@ -19,6 +25,7 @@ import states.StateMachine;
 public class KstatesResource extends ResourceImpl {
 
     private StateMachine parsedStateMachine;
+    private EPackage statePackage;
 
     public KstatesResource(URI uri) {
         super(uri);
@@ -31,28 +38,29 @@ public class KstatesResource extends ResourceImpl {
         String content = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
 
         try {
-            // parse kmeta text dsl to karpfen ast metamodel
+            // parse kstates text dsl to karpfen ast state machine
             this.parsedStateMachine = KstatesDSLConverter.INSTANCE.parseKstatesString(content);
 
-            EcoreFactory factory = EcoreFactory.eINSTANCE;
             String smName = getURI().trimFileExtension().lastSegment();
             if (smName == null || smName.isBlank()) {
                 smName = "kstatesMachine";
             }
 
-            EPackage statePackage = factory.createEPackage();
-            statePackage.setName(smName);
-            statePackage.setNsURI("http://github/karpfen/states/" + smName);
-            statePackage.setNsPrefix(smName);
+            // transform karpfen ast to EMF ecore behavioral graph
+            KStatesToEcoreTransformer transformer = new KStatesToEcoreTransformer();
+            EObject rootStateMachine = transformer.transform(this.parsedStateMachine, smName);
+            this.statePackage = transformer.getStatePackage();
 
-            // EClass
-            EClass smClass = factory.createEClass();
-            smClass.setName("StateMachine_" + this.parsedStateMachine.getAttachedToClass());
+            if (this.statePackage != null) {
+                EPackage.Registry.INSTANCE.put(this.statePackage.getNsURI(), this.statePackage);
+                if (getResourceSet() != null) {
+                    getResourceSet().getPackageRegistry().put(this.statePackage.getNsURI(), this.statePackage);
+                }
+            }
 
-            statePackage.getEClassifiers().add(smClass);
-
+            getErrors().clear();
             getContents().clear();
-            getContents().add(statePackage);
+            getContents().add(rootStateMachine);
 
             KarpfenProblemMarkerManager.clearMarkers(getURI());
 
@@ -72,10 +80,41 @@ public class KstatesResource extends ResourceImpl {
     // D2T
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
-        outputStream.flush();
+        if (!getContents().isEmpty() && getContents().get(0) instanceof EObject smObj) {
+            EcoreToKStatesManualSerializer serializer = new EcoreToKStatesManualSerializer();
+            String generated = serializer.serialize(smObj);
+            String formatted = KarpfenDslFormatter.formatKStates(generated);
+            outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
+
+            try {
+                this.parsedStateMachine = KstatesDSLConverter.INSTANCE.parseKstatesString(formatted);
+            } catch (Throwable t) {
+                KarpfenLog.warn("Could not update in-memory parsedStateMachine after doSave: " + t.getMessage());
+            }
+
+            refreshWorkspaceAfterSave();
+        }
     }
 
-    public StateMachine getParsedSatteMachine() {
+    private void refreshWorkspaceAfterSave() {
+        if (getURI() != null && getURI().isPlatformResource()) {
+            try {
+                String platformPath = getURI().toPlatformString(true);
+                IFile file = ResourcesPlugin.getWorkspace().getRoot().getFile(new Path(platformPath));
+                if (file.exists() && file.getParent() != null) {
+                    file.getParent().refreshLocal(IResource.DEPTH_ONE, null);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    public StateMachine getParsedStateMachine() {
         return parsedStateMachine;
+    }
+
+    public EPackage getStatePackage() {
+        return statePackage;
     }
 }

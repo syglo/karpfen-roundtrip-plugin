@@ -20,16 +20,20 @@ import org.junit.jupiter.api.Test;
 import org.karpfen.resource.KarpfenResourceInitializer;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 import org.karpfen.transformer.KModelToEcoreInstanceTransformer;
+import org.karpfen.transformer.KStatesToEcoreTransformer;
 
 import dsl.textual.KmetaDSLConverter;
 import dsl.textual.KmodelDSLConverter;
+import dsl.textual.KstatesDSLConverter;
 import instance.Model;
 import meta.Metamodel;
+import states.StateMachine;
 
 public class ManualSerializationTest {
 
     private static File kmetaFile;
     private static File kmodelFile;
+    private static File kstatesFile;
 
     @BeforeAll
     static void setUp() {
@@ -38,9 +42,11 @@ public class ManualSerializationTest {
         Path base = Path.of("").toAbsolutePath();
         kmetaFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmeta").normalize().toFile();
         kmodelFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kmodel").normalize().toFile();
+        kstatesFile = base.resolve("../example/statemachine_full_example/cleaning_robot.kstates").normalize().toFile();
 
         assertTrue(kmetaFile.exists(), "cleaning_robot.kmeta should exist: " + kmetaFile.getAbsolutePath());
         assertTrue(kmodelFile.exists(), "cleaning_robot.kmodel should exist: " + kmodelFile.getAbsolutePath());
+        assertTrue(kstatesFile.exists(), "cleaning_robot.kstates should exist: " + kstatesFile.getAbsolutePath());
     }
 
     @Test
@@ -113,5 +119,45 @@ public class ManualSerializationTest {
         assertEquals(1, reparsedModel.getObjects().size());
         assertEquals("APB 2101", reparsedModel.getObjects().get(0).getId());
         assertEquals("Room", reparsedModel.getObjects().get(0).getOfType().getName());
+    }
+
+    @Test
+    void testManualKStatesRoundtrip() throws IOException {
+        String originalKStatesText = Files.readString(kstatesFile.toPath(), StandardCharsets.UTF_8);
+
+        // text -> karpfen ast
+        StateMachine originalSM = KstatesDSLConverter.INSTANCE.parseKstatesString(originalKStatesText);
+        assertNotNull(originalSM);
+        assertEquals("Robot", originalSM.getAttachedToClass());
+        assertEquals(3, originalSM.getStates().size(), "ready, observe, drive");
+        assertEquals(7, originalSM.getTransitions().size());
+        assertEquals(7, originalSM.getMacros().size());
+
+        // karpfen ast -> dynamic emf behaviroual graph
+        KStatesToEcoreTransformer transformer = new KStatesToEcoreTransformer();
+        EObject smEObject = transformer.transform(originalSM, "cleaning_robot_states");
+        assertNotNull(smEObject);
+
+        // dynamic emf -> serializer -> formatter
+        EcoreToKStatesManualSerializer serializer = new EcoreToKStatesManualSerializer();
+        String generatedRaw = serializer.serialize(smEObject);
+        String formattedKStates = KarpfenDslFormatter.formatKStates(generatedRaw);
+
+        assertNotNull(formattedKStates);
+        assertFalse(formattedKStates.isBlank());
+
+        // debug in build/test-outputs
+        Path testOutputDir = Path.of("build/test-outputs");
+        Files.createDirectories(testOutputDir);
+        Files.writeString(testOutputDir.resolve("manual_cleaning_robot.kstates"), generatedRaw, StandardCharsets.UTF_8);
+        Files.writeString(testOutputDir.resolve("format_manual_cleaning_robot.kstates"), formattedKStates,
+                StandardCharsets.UTF_8);
+
+        // reparse and compare ast parity
+        StateMachine reparsedSM = KstatesDSLConverter.INSTANCE.parseKstatesString(formattedKStates);
+        assertEquals(originalSM.getAttachedToClass(), reparsedSM.getAttachedToClass());
+        assertEquals(originalSM.getStates().size(), reparsedSM.getStates().size());
+        assertEquals(originalSM.getTransitions().size(), reparsedSM.getTransitions().size());
+        assertEquals(originalSM.getMacros().size(), reparsedSM.getMacros().size());
     }
 }
