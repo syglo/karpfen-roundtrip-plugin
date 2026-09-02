@@ -141,9 +141,40 @@ application {
     mainClass = "org.karpfen.App"
 }
 
+val testSourceSet = sourceSets["test"]
+
+val benchmarkTask = tasks.register<Test>("benchmark") {
+    group = "verification"
+    description = "Executes the headless benchmarking suite and exports CSV reports to build/benchmark-reports/."
+    useJUnitPlatform()
+
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath
+
+    filter {
+        includeTestsMatching("org.karpfen.benchmark.*")
+    }
+
+    outputs.upToDateWhen { false }
+
+    minHeapSize = "512m"
+    maxHeapSize = "2048m"
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+        showStackTraces = true
+    }
+}
+
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+
+    filter {
+        excludeTestsMatching("org.karpfen.benchmark.*")
+    }
+
     testLogging {
         events("passed", "skipped", "failed")
         showStandardStreams = true
