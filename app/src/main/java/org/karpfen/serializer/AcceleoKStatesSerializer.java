@@ -3,7 +3,11 @@ package org.karpfen.serializer;
 import org.eclipse.emf.ecore.EObject;
 import org.karpfen.design.KarpfenLog;
 
-public class AcceleoKStatesSerializer {
+/**
+ * Template-driven serializer generating {@code .kstates} DSL source text using
+ * Acceleo 4 code generation.
+ */
+public class AcceleoKStatesSerializer implements KStatesSerializer {
 
     public static final String MODULE_NAME = "templates::generateKStates";
     public static final String TEMPLATE_NAME = "generateKStates";
@@ -11,6 +15,15 @@ public class AcceleoKStatesSerializer {
 
     private final AcceleoRunner runner = new AcceleoRunner();
 
+    /**
+     * Serializes the dynamic state machine {@link EObject} into {@code .kstates}
+     * text via Acceleo templates.
+     * {resources/templates/generateKStates.mtl}.
+     *
+     * @param smObject the root dynamic state machine object
+     * @return generated {@code .kstates} text
+     */
+    @Override
     public String serialize(EObject smObject) {
         if (smObject == null) {
             return "";

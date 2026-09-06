@@ -36,6 +36,18 @@ import dsl.textual.KmodelDSLConverter;
 import instance.Model;
 import meta.Metamodel;
 
+/**
+ * Binds {@code .kmodel} Karpfend text files extensions/associations in Eclipse
+ * IDE.
+ * EMF {@link org.eclipse.emf.ecore.resource.Resource} implementation for
+ * Karpfen Instance Model files ({@code .kmodel}).
+ * 
+ * Dynamically resolves companion {@code .kmeta} metamodels from the
+ * workspace/filesystem, instantiates
+ * dynamic {@link EObject} graphs during {@link #doLoad(InputStream, Map)}, and
+ * serializes instance changes
+ * back to {@code .kmodel} text in {@link #doSave(OutputStream, Map)}.
+ */
 public class KmodelResource extends ResourceImpl {
 
     public static SerializerMode ACTIVE_MODE = SerializerMode.ACCELEO_TEMPLATE;
@@ -43,6 +55,11 @@ public class KmodelResource extends ResourceImpl {
     private Model parsedModel;
     private EPackage companionPackage;
 
+    /**
+     * Creates a new {@link KmodelResource} for the specified URI.
+     *
+     * @param uri URI of the {@code .kmodel} resource
+     */
     public KmodelResource(URI uri) {
         super(uri);
         KarpfenResourceInitializer.init();

@@ -19,13 +19,26 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-// Its a Formatter based on ANTRL4 TokenStream rewriting .kmeta/.kmodel/.kstates text by reusing Karpfen ASTs.
-// Applied at T2D and D2T stage universally in eclipse ide. To force formatting for roundtrip enginerring
+/**
+ * Canonical DSL formatter based on ANTLR4 parse tree visitor rewriting for
+ * {@code .kmeta}, {@code .kmodel}, and {@code .kstates}.
+ * 
+ * Standardizes indentation (4 spaces), property/relationship section groupings,
+ * and block formatting
+ * during Text-to-Diagram (T2D) and Diagram-to-Text (D2T) roundtrip cycles.
+ */
 public class KarpfenDslFormatter {
 
     // 4-spaces by default
     private static final String INDENT = "    ";
 
+    /**
+     * Automatically formats raw DSL text based on the file name extension.
+     *
+     * @param rawText  raw source text to format
+     * @param filename file name or path used to determine the DSL grammar
+     * @return canonically formatted source text
+     */
     public static String formatAuto(String rawText, String filename) {
         if (rawText == null || rawText.isBlank())
             return "";
@@ -41,7 +54,12 @@ public class KarpfenDslFormatter {
         return rawText;
     }
 
-    // Formats .kmeta source code
+    /**
+     * Formats {@code .kmeta} metamodel source text into canonical layout.
+     *
+     * @param rawKMeta raw {@code .kmeta} text
+     * @return formatted {@code .kmeta} text
+     */
     public static String formatKMeta(String rawKMeta) {
         if (rawKMeta == null || rawKMeta.isBlank())
             return "";
@@ -63,7 +81,12 @@ public class KarpfenDslFormatter {
         }
     }
 
-    // Formats .kmodel source code
+    /**
+     * Formats {@code .kmodel} instance model source text into canonical layout.
+     *
+     * @param rawKModel raw {@code .kmodel} text
+     * @return formatted {@code .kmodel} text
+     */
     public static String formatKModel(String rawKModel) {
         if (rawKModel == null || rawKModel.isBlank())
             return "";
@@ -85,7 +108,13 @@ public class KarpfenDslFormatter {
         }
     }
 
-    // Formats .kstates source code
+    /**
+     * Formats {@code .kstates} behavioral state machine source text into canonical
+     * layout.
+     *
+     * @param rawKStates raw {@code .kstates} text
+     * @return formatted {@code .kstates} text
+     */
     public static String formatKStates(String rawKStates) {
         if (rawKStates == null || rawKStates.isBlank())
             return "";

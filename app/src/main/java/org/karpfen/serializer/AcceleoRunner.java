@@ -43,6 +43,11 @@ import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 
+/**
+ * Standalone Acceleo+EMF class for serializing KMeta/KModel/KStates EMF models
+ * into karpfen {@code .kmeta}/{@code .kmodel}/{@code .kstates} DSL text using
+ * Acceleo templates in {resources/templates}.
+ */
 public class AcceleoRunner {
 
     public String generateToString(String moduleQualifiedName, String templateName, String outputFilename,

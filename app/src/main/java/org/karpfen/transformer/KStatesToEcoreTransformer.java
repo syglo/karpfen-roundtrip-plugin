@@ -36,6 +36,17 @@ import states.conditions.EventCondition;
 import states.conditions.ValueCondition;
 import states.macros.TakesDirective;
 
+/**
+ * Transforms a Karpfen behavioral State Machine AST ({@link StateMachine}) into
+ * a dynamic EMF
+ * behavioral statechart metamodel and instance graph.
+ * 
+ * Instantiates dynamic {@code StateMachine}, {@code State}, and
+ * {@code Transition} {@link EObject}s,
+ * maps entry/do actions and guard conditions, maintains composite state
+ * nesting, and preserves
+ * macro blocks across transformation boundaries.
+ */
 public class KStatesToEcoreTransformer {
 
     private final EcoreFactory factory = EcoreFactory.eINSTANCE;
@@ -48,6 +59,14 @@ public class KStatesToEcoreTransformer {
     private EClass stateClass;
     private EClass transitionClass;
 
+    /**
+     * Transforms a parsed Karpfen {@link StateMachine} AST into a dynamic EMF state
+     * machine {@link EObject}.
+     *
+     * @param stateMachine the parsed Karpfen state machine AST
+     * @param packageName  package and classifier namespace name
+     * @return the root {@link EObject} representing the dynamic state machine
+     */
     public EObject transform(StateMachine stateMachine, String packageName) {
         if (stateMachine == null) {
             return null;
@@ -274,6 +293,13 @@ public class KStatesToEcoreTransformer {
         return transObj;
     }
 
+    /**
+     * Formats an {@link ActionBlock} into a serialized Karpfen action statement
+     * representation.
+     *
+     * @param block the action block AST
+     * @return string representation of the action block or null if empty
+     */
     public static String formatActionBlock(ActionBlock block) {
         if (block == null || block.isEmpty()) {
             return null;
@@ -346,6 +372,12 @@ public class KStatesToEcoreTransformer {
         return right != null ? right.toString() : "\"\"";
     }
 
+    /**
+     * Formats a {@link Condition} AST into a serialized Karpfen guard expression.
+     *
+     * @param cond the condition AST
+     * @return string representation of the condition expression, or null if empty
+     */
     public static String formatCondition(Condition cond) {
         if (cond == null) {
             return null;
@@ -363,6 +395,12 @@ public class KStatesToEcoreTransformer {
         return cond.toString().trim();
     }
 
+    /**
+     * Formats a {@link Macro} AST into a canonical Karpfen macro block declaration.
+     *
+     * @param macro the macro definition AST
+     * @return string representation of the macro block, or null if empty
+     */
     public static String formatMacro(Macro macro) {
         if (macro == null)
             return null;
@@ -405,6 +443,11 @@ public class KStatesToEcoreTransformer {
         return text.trim().replaceAll("^[\"']|[\"']$", "");
     }
 
+    /**
+     * Returns the dynamic {@link EPackage} schema generated for the state machine.
+     *
+     * @return the state machine's dynamic EMF package schema
+     */
     public EPackage getStatePackage() {
         return statePackage;
     }

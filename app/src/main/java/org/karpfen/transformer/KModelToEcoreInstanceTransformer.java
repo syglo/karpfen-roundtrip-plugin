@@ -29,10 +29,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Transforms a Karpfen textual Model AST ({@link Model}) into dynamic EMF
+ * {@link EObject} instance graphs.
+ * 
+ * Performs two-phase instantiation: first instantiating all {@link EObject}
+ * nodes corresponding to
+ * {@link DataObject}s, and second populating primitive feature values, embedded
+ * containment hierarchies,
+ * and cross-referencing link relationships.
+ */
 public class KModelToEcoreInstanceTransformer {
 
     private final Map<String, EObject> eObjectMap = new HashMap<>();
 
+    /**
+     * Transforms a parsed Karpfen {@link Model} AST into an in-memory graph of
+     * dynamic EMF {@link EObject}s.
+     *
+     * @param kModel   the parsed Karpfen instance model AST
+     * @param ePackage the dynamic EMF metamodel defining the schema
+     * @return a list of root {@link EObject}s (instances without a container)
+     */
     public List<EObject> transform(Model kModel, EPackage ePackage) {
         eObjectMap.clear();
 
@@ -59,6 +77,14 @@ public class KModelToEcoreInstanceTransformer {
         return rootEObjects;
     }
 
+    /**
+     * Serializes a collection of dynamic root {@link EObject}s to an XMI file.
+     *
+     * @param rootObjects root objects of the model graph to save
+     * @param ePackage    corresponding dynamic metamodel package
+     * @param outputFile  destination file on disk
+     * @throws IOException if saving fails
+     */
     public void saveToXmiFile(List<EObject> rootObjects, EPackage ePackage, File outputFile) throws IOException {
         ResourceSet resourceSet = new ResourceSetImpl();
         resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
@@ -82,6 +108,14 @@ public class KModelToEcoreInstanceTransformer {
         resource.save(saveOptions);
     }
 
+    /**
+     * Serializes a single dynamic root {@link EObject} to an XMI file.
+     *
+     * @param rootObject root object of the model graph to save
+     * @param ePackage   corresponding dynamic metamodel package
+     * @param outputFile destination file on disk
+     * @throws IOException if saving fails
+     */
     public void saveToXmiFile(EObject rootObject, EPackage ePackage, File outputFile) throws IOException {
         saveToXmiFile(Collections.singletonList(rootObject), ePackage, outputFile);
     }
@@ -181,6 +215,12 @@ public class KModelToEcoreInstanceTransformer {
                 : String.valueOf(System.identityHashCode(dataObject));
     }
 
+    /**
+     * Returns an unmodifiable map of object keys/IDs to their corresponding dynamic
+     * {@link EObject}s.
+     *
+     * @return lookup map of instantiated {@link EObject}s
+     */
     public Map<String, EObject> getEObjectMap() {
         return Collections.unmodifiableMap(eObjectMap);
     }

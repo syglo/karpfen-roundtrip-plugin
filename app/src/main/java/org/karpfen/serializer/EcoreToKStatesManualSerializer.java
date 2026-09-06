@@ -3,9 +3,27 @@ package org.karpfen.serializer;
 import java.util.List;
 import org.eclipse.emf.ecore.EObject;
 
-// Manual serializer converts EMF behavioral graph into raw .kstates text
-public class EcoreToKStatesManualSerializer {
+/**
+ * Manual programmatic Java serializer converting dynamic EMF behavioral state
+ * machine graphs into {@code .kstates} DSL text.
+ * Without indentation or any formatting, because it is post-processed through
+ * ANTLR-based Karpfen DSL formatter.
+ * 
+ * Emits the {@code STATEMACHINE ATTACHED TO ...} container block,
+ * {@code STATES} with nested entry/do actions
+ * and composite inner states, {@code TRANSITIONS} with guard conditions and
+ * loop directives, and {@code MACROS} declarations.
+ */
+public class EcoreToKStatesManualSerializer implements KStatesSerializer {
 
+    /**
+     * Serializes a dynamic EMF state machine {@link EObject} into Karpfen
+     * {@code .kstates} DSL text.
+     *
+     * @param smObj the root dynamic state machine {@link EObject}
+     * @return generated {@code .kstates} source text
+     */
+    @Override
     public String serialize(EObject smObj) {
         if (smObj == null) {
             return "";

@@ -14,12 +14,28 @@ import org.eclipse.emf.ecore.ETypedElement;
 import org.eclipse.emf.ecore.EcorePackage;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 
-// Manual serializer converts EMF Metamodel into .kmeta text
+/**
+ * Manual programmatic Java serializer converting EMF {@link EPackage}
+ * metamodels into {@code .kmeta} Karpfen DSL source text.
+ * Without indentation or any formatting, because it is post-processed through
+ * ANTLR-based Karpfen DSL formatter.
+ * 
+ * Emits type definitions, comments from GenModel documentation annotations,
+ * primitive properties,
+ * and containment ({@code has}) / non-containment ({@code knows}) reference
+ * declarations with canonical ordering.
+ */
 public class EcoreToKMetaManualSerializer implements KMetaSerializer {
 
     private static final String GENMODEL_URI = "https://eclipse/emf/GenModel";
     private static final String KARPFEN_URI = "https://github/karpfen/annotation";
 
+    /**
+     * Serializes the given {@link EPackage} into Karpfen {@code .kmeta} DSL text.
+     *
+     * @param ePackage the EMF package to serialize
+     * @return generated {@code .kmeta} source text
+     */
     @Override
     public String serialize(EPackage ePackage) {
         if (ePackage == null) {

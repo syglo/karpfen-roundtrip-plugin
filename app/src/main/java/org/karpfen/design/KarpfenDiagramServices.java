@@ -36,6 +36,15 @@ import org.eclipse.sirius.diagram.DEdge;
 import org.eclipse.sirius.diagram.EdgeTarget;
 import org.eclipse.sirius.viewpoint.DSemanticDecorator;
 
+/**
+ * Core Eclipse Sirius diagram services provider helpers for Karpfen DSL visual
+ * representations.
+ * Implements direct-editing micro-parsers using ANTLR4 to allow inline textual
+ * editing of
+ * diagram elements, label computation for UML class diagrams, object graphs,
+ * and statecharts,
+ * and palette tool operations (create/delete link, create/delete node).
+ */
 public class KarpfenDiagramServices {
 
     public static final String KARPFEN_URI = "https://github/karpfen/annotation";
@@ -51,6 +60,13 @@ public class KarpfenDiagramServices {
     // Helpers to fix sirius view representation for root objects through sirius
     // precondition expression.
 
+    /**
+     * Sirius precondition checker determining if an {@link EObject} is a valid root
+     * candidate for KModel diagrams.
+     *
+     * @param self context semantic element or view decorator
+     * @return true if the element represents a valid KModel root object
+     */
     public boolean isKModelRoot(EObject self) {
         if (self == null)
             return false;
@@ -69,6 +85,14 @@ public class KarpfenDiagramServices {
         return true;
     }
 
+    /**
+     * Sirius precondition checker determining if an {@link EObject} is a root
+     * StateMachine. Used to filter out EObjects that are not root StateMachine,
+     * like State, and Transition types.
+     *
+     * @param self context semantic element or view decorator
+     * @return true if the element is a root StateMachine
+     */
     public boolean isKStatesRoot(EObject self) {
         if (self == null)
             return false;
@@ -82,6 +106,13 @@ public class KarpfenDiagramServices {
 
     // ! KMeta visual projections - UML class diagramm
 
+    /**
+     * Computes the display label for an {@link EClass} in a KMeta diagram,
+     * appending {@code <root>} if marked.
+     *
+     * @param clas the metamodel class
+     * @return formatted class header label
+     */
     public String getKMetaClassLabel(EClass clas) {
         if (clas == null || clas.getName() == null)
             return "Type";
@@ -95,6 +126,13 @@ public class KarpfenDiagramServices {
         return clas.getName();
     }
 
+    /**
+     * Computes the display label for an {@link EAttribute} in a KMeta diagram (e.g.
+     * {@code name : string}).
+     *
+     * @param attr the metamodel attribute
+     * @return formatted attribute label
+     */
     public String getKMetaAttributeLabel(EAttribute attr) {
         if (attr == null || attr.getName() == null)
             return "";
@@ -105,6 +143,12 @@ public class KarpfenDiagramServices {
         return attr.getName() + " : " + typeName;
     }
 
+    /**
+     * Computes the display label for an {@link EReference} edge in a KMeta diagram.
+     *
+     * @param ref the metamodel reference
+     * @return formatted reference label
+     */
     public String getKMetaEdgeLabel(EReference ref) {
         if (ref == null || ref.getName() == null)
             return "";
@@ -116,6 +160,14 @@ public class KarpfenDiagramServices {
 
     // ! KMeta ANTLR micro parser, input subsitution
 
+    /**
+     * Direct-editing micro-parser for modifying an {@link EClass} name from inline
+     * diagram input.
+     *
+     * @param clas  target class to rename
+     * @param input user-typed text snippet
+     * @return updated {@link EClass}
+     */
     public EClass editClassName(EClass clas, String input) {
         KarpfenLog.trace("DirectEdit-KMeta", "editClassName called for class="
                 + (clas != null ? clas.getName() : "null") + " with input=[" + input + "]");
@@ -155,6 +207,17 @@ public class KarpfenDiagramServices {
         return clas;
     }
 
+    /**
+     * Direct-editing micro-parser for updating an {@link EAttribute} from inline
+     * diagram input.
+     * Parses property declarations (e.g. {@code prop("x", "number")} or shorthand
+     * {@code x: number}),
+     * updating attribute name, multiplicity, and data type.
+     *
+     * @param attr  target attribute to edit
+     * @param input user-typed text snippet
+     * @return updated {@link EAttribute}
+     */
     public EAttribute editKMetaAttribute(EAttribute attr, String input) {
         KarpfenLog.trace("DirectEdit-KMeta", "editKMetaAttribute called for attr="
                 + (attr != null ? attr.getName() : "null") + " with input=[" + input + "]");
@@ -217,6 +280,17 @@ public class KarpfenDiagramServices {
         return attr;
     }
 
+    /**
+     * Direct-editing micro-parser for updating an {@link EReference} edge from
+     * inline diagram input.
+     * Parses {@code has(...)} and {@code knows(...)} relation rules, updating
+     * reference name,
+     * target type, and list multiplicity.
+     *
+     * @param ref   target reference edge to edit
+     * @param input user-typed text snippet
+     * @return updated {@link EReference}
+     */
     public EReference editKMetaEdge(EReference ref, String input) {
         KarpfenLog.trace("DirectEdit-KMeta", "editKMetaEdge called for ref=" + (ref != null ? ref.getName() : "null")
                 + " with input=[" + input + "]");
@@ -291,6 +365,13 @@ public class KarpfenDiagramServices {
         return ref;
     }
 
+    /**
+     * Toggles the designated root class annotation on the containing
+     * {@link EPackage}.
+     *
+     * @param clas the metamodel class to toggle as root
+     * @return the class
+     */
     public EObject toggleRootClass(EClass clas) {
         if (clas == null || clas.getEPackage() == null)
             return clas;
@@ -313,6 +394,13 @@ public class KarpfenDiagramServices {
 
     // ! KModel visual projections - UML object diagramm
 
+    /**
+     * Computes the header label for an instance object (e.g.
+     * {@code id : ClassName}).
+     *
+     * @param self context instance object or view decorator
+     * @return formatted instance header string
+     */
     public String getObjectHeaderLabel(EObject self) {
         if (self == null)
             return "";
@@ -334,6 +422,12 @@ public class KarpfenDiagramServices {
         return idStr + " : " + className;
     }
 
+    /**
+     * Returns all non-identity schema attributes defined on the instance's class.
+     *
+     * @param self context instance object
+     * @return list of schema {@link EAttribute}s
+     */
     public List<EAttribute> getSchemaAttributes(EObject self) {
         if (self == null)
             return Collections.emptyList();
@@ -355,6 +449,13 @@ public class KarpfenDiagramServices {
         return result;
     }
 
+    /**
+     * Returns all schema attributes that currently have values set on the instance
+     * object.
+     *
+     * @param self context instance object
+     * @return list of populated {@link EAttribute}s
+     */
     public List<EAttribute> getPopulatedAttributes(EObject self) {
         if (self == null)
             return Collections.emptyList();
@@ -392,6 +493,14 @@ public class KarpfenDiagramServices {
         return result;
     }
 
+    /**
+     * Computes the display slot label for an attribute on a target instance (e.g.
+     * {@code feature = value}).
+     *
+     * @param attr    the attribute slot definition
+     * @param context the target instance context
+     * @return formatted slot string or {@code feature = <unset>}
+     */
     public String getKModelSlotLabel(EAttribute attr, EObject context) {
         if (attr == null)
             return "";
@@ -453,18 +562,49 @@ public class KarpfenDiagramServices {
         return featName + " = " + val.toString();
     }
 
+    /**
+     * Overloaded slot label provider with swapped parameter order for Sirius AQL
+     * expressions.
+     *
+     * @param context the target instance context
+     * @param attr    the attribute slot definition
+     * @return formatted slot string
+     */
     public String getKModelSlotLabel(EObject context, EAttribute attr) {
         return getKModelSlotLabel(attr, context);
     }
 
+    /**
+     * Resolves display label for a containment link between instance nodes.
+     *
+     * @param self         source instance
+     * @param viewOrTarget target instance or view decorator
+     * @return containment feature name(s) or "has"
+     */
     public String getInstanceContainmentLabel(EObject self, EObject viewOrTarget) {
         return resolveInstanceEdgeLabel(self, viewOrTarget, true);
     }
 
+    /**
+     * Resolves display label for a cross-reference link between instance nodes.
+     *
+     * @param self         source instance
+     * @param viewOrTarget target instance or view decorator
+     * @return reference feature name(s) or "knows"
+     */
     public String getInstanceReferenceLabel(EObject self, EObject viewOrTarget) {
         return resolveInstanceEdgeLabel(self, viewOrTarget, false);
     }
 
+    /**
+     * Computes the edge label between two instance endpoints based on active EMF
+     * references.
+     *
+     * @param self          source element
+     * @param viewOrTarget  target element or view
+     * @param isContainment true for containment, false for cross-references
+     * @return joined feature names or default fallback keyword
+     */
     public String resolveInstanceEdgeLabel(EObject self, EObject viewOrTarget, boolean isContainment) {
         SourceTargetPair pair = resolveEndpoints(self, viewOrTarget);
         EObject src = pair.source();
@@ -509,6 +649,14 @@ public class KarpfenDiagramServices {
 
     // ! KModel Direct Editing & Micro-Parsing
 
+    /**
+     * Direct-editing micro-parser for updating instance object ID headers (e.g.
+     * {@code "myId":"MyType"}).
+     *
+     * @param self  context instance object
+     * @param input user-typed text snippet
+     * @return updated instance {@link EObject}
+     */
     public EObject editKModelObjectHeader(EObject self, String input) {
         KarpfenLog.trace("DirectEdit-KModel", "editKModelObjectHeader called with input=[" + input + "]");
         if (self == null || input == null || input.isBlank())
@@ -560,6 +708,16 @@ public class KarpfenDiagramServices {
         return target;
     }
 
+    /**
+     * Direct-editing entry point for updating a slot attribute value from inline
+     * diagram input.
+     *
+     * @param attr    target slot attribute
+     * @param context context instance element or view decorator
+     * @param input   user-typed text snippet (e.g. {@code prop("x") -> "10"} or
+     *                {@code x = 10} or raw {@code 10})
+     * @return updated attribute definition
+     */
     public EObject editKModelSlotValue(EAttribute attr, EObject context, String input) {
         KarpfenLog.trace("DirectEdit-KModel", "editKModelSlotValue called with attr="
                 + (attr != null ? attr.getName() : "null") + ", input=[" + input + "]");
@@ -575,10 +733,29 @@ public class KarpfenDiagramServices {
         return attr;
     }
 
+    /**
+     * Overloaded direct-editing slot value updater with swapped parameter order for
+     * Sirius AQL expressions.
+     *
+     * @param context context instance element or view decorator
+     * @param attr    target slot attribute
+     * @param input   user-typed text snippet
+     * @return updated attribute definition
+     */
     public EObject editKModelSlotValue(EObject context, EAttribute attr, String input) {
         return editKModelSlotValue(attr, context, input);
     }
 
+    /**
+     * Executes micro-parsing and value assignment for an instance slot feature.
+     * Converts text values to the appropriate Ecore primitive type and supports
+     * {@code <unset>} commands.
+     *
+     * @param container instance container object
+     * @param attr      attribute slot definition
+     * @param input     user-typed text value
+     * @return modified container instance
+     */
     public EObject editKModelSlot(EObject container, EAttribute attr, String input) {
         KarpfenLog.trace("DirectEdit-KModel", "editKModelSlot executing on container=" + container + ", attr="
                 + (attr != null ? attr.getName() : "null") + ", input=[" + input + "]");
@@ -703,6 +880,19 @@ public class KarpfenDiagramServices {
         return editKModelSlot(container, attr, input);
     }
 
+    /**
+     * Direct-editing micro-parser for reconciling instance relationships from typed
+     * edge labels.
+     * Validates type compatibility of requested reference features and
+     * assigns/clears relations accordingly.
+     *
+     * @param self          source instance node
+     * @param viewOrTarget  target instance node or view decorator
+     * @param input         comma-separated list of reference feature names
+     * @param isContainment true for containment edges ({@code has}), false for
+     *                      references ({@code knows})
+     * @return updated source {@link EObject}
+     */
     public EObject editInstanceEdge(EObject self, Object viewOrTarget, String input, boolean isContainment) {
         EObject viewObj = null;
         if (viewOrTarget instanceof List<?> list && !list.isEmpty()) {
@@ -806,6 +996,16 @@ public class KarpfenDiagramServices {
         return src;
     }
 
+    /**
+     * Palette tool operation creating a containment or cross-reference link between
+     * two instance nodes.
+     *
+     * @param source        source instance node
+     * @param target        target instance node
+     * @param isContainment true for containment ({@code has}), false for reference
+     *                      ({@code knows})
+     * @return modified source instance
+     */
     public EObject createInstanceLink(EObject source, EObject target, boolean isContainment) {
         EObject src = resolveSemanticTarget(source);
         EObject tgt = resolveSemanticTarget(target);
@@ -862,6 +1062,15 @@ public class KarpfenDiagramServices {
 
     // KModel delete operations
 
+    /**
+     * Palette tool operation deleting a relationship link between two instance
+     * nodes.
+     *
+     * @param self          source instance node
+     * @param viewOrTarget  target instance or view decorator
+     * @param isContainment true for containment, false for cross-references
+     * @return modified source instance
+     */
     public EObject deleteInstanceLink(EObject self, Object viewOrTarget, boolean isContainment) {
         EObject viewObj = null;
         if (viewOrTarget instanceof List<?> list && !list.isEmpty()) {
@@ -906,6 +1115,13 @@ public class KarpfenDiagramServices {
         return src;
     }
 
+    /**
+     * Palette/context menu tool deleting an instance {@link EObject} from its
+     * container or resource.
+     *
+     * @param self instance element to delete
+     * @return parent container or target element
+     */
     public EObject deleteKModelObject(EObject self) {
         EObject target = resolveSemanticTarget(self);
         if (target == null)
@@ -935,6 +1151,13 @@ public class KarpfenDiagramServices {
 
     // ! KStates visual projections - Statechart diagram
 
+    /**
+     * Computes the header label for a state (e.g. {@code <initial> StateName} or
+     * {@code StateName}).
+     *
+     * @param state the state {@link EObject}
+     * @return formatted state header label
+     */
     public String getStateHeaderLabel(EObject state) {
         if (state == null)
             return "State";
@@ -947,6 +1170,12 @@ public class KarpfenDiagramServices {
         return (isInit != null && isInit) ? "<initial> " + name : name;
     }
 
+    /**
+     * Computes the display label for a state's {@code entry} action block.
+     *
+     * @param state the state {@link EObject}
+     * @return formatted entry action string (e.g. {@code entry / EVENT(...)})
+     */
     public String getEntryLabel(EObject state) {
         if (state == null)
             return "";
@@ -969,6 +1198,12 @@ public class KarpfenDiagramServices {
         return "";
     }
 
+    /**
+     * Computes the display label for a state's {@code do} action block.
+     *
+     * @param state the state {@link EObject}
+     * @return formatted do action string (e.g. {@code do / SET(...)})
+     */
     public String getDoLabel(EObject state) {
         if (state == null)
             return "";
@@ -991,6 +1226,14 @@ public class KarpfenDiagramServices {
         return "";
     }
 
+    /**
+     * Computes the display label for a transition edge (guard conditions, events,
+     * values).
+     *
+     * @param transition the transition {@link EObject}
+     * @return formatted transition guard label (e.g. {@code [condition]} or
+     *         {@code EVENT(...)})
+     */
     public String getTransitionLabel(EObject transition) {
         if (transition == null)
             return "";
@@ -1027,6 +1270,14 @@ public class KarpfenDiagramServices {
 
     // ! KStates Direct Editing & Operations
 
+    /**
+     * Direct-editing micro-parser for updating state names and initial state
+     * markers.
+     *
+     * @param state the state {@link EObject}
+     * @param input user-typed text snippet
+     * @return updated state {@link EObject}
+     */
     public EObject editStateName(EObject state, String input) {
         KarpfenLog.trace("DirectEdit-KStates", "editStateName called with input=[" + input + "]");
         if (state == null || input == null || input.isBlank())
@@ -1050,6 +1301,14 @@ public class KarpfenDiagramServices {
         return state;
     }
 
+    /**
+     * Direct-editing micro-parser for updating transition guard conditions and
+     * {@code NOT LOOPING} directives.
+     *
+     * @param transition the transition {@link EObject}
+     * @param input      user-typed guard text snippet
+     * @return updated transition {@link EObject}
+     */
     public EObject editTransitionGuard(EObject transition, String input) {
         KarpfenLog.trace("DirectEdit-KStates", "editTransitionGuard called with input=[" + input + "]");
         if (transition == null || input == null)
@@ -1081,6 +1340,12 @@ public class KarpfenDiagramServices {
         return transition;
     }
 
+    /**
+     * Toggles the initial state flag on a state {@link EObject}.
+     *
+     * @param state target state
+     * @return updated state
+     */
     public EObject toggleInitialState(EObject state) {
         if (state == null)
             return state;
@@ -1093,6 +1358,14 @@ public class KarpfenDiagramServices {
         return state;
     }
 
+    /**
+     * Palette tool operation creating a transition edge between source and target
+     * states.
+     *
+     * @param source source state
+     * @param target target state
+     * @return source state
+     */
     public EObject createTransitionLink(EObject source, EObject target) {
         EObject src = resolveSemanticTarget(source);
         EObject tgt = resolveSemanticTarget(target);
@@ -1124,6 +1397,12 @@ public class KarpfenDiagramServices {
         return source;
     }
 
+    /**
+     * Palette tool operation creating a new state node in the state machine.
+     *
+     * @param container context state machine container
+     * @return newly created state {@link EObject}
+     */
     public EObject createState(EObject container) {
         EObject target = resolveSemanticTarget(container);
         if (target == null)
@@ -1164,6 +1443,13 @@ public class KarpfenDiagramServices {
         return target;
     }
 
+    /**
+     * Palette/context menu tool deleting a state and all connected transitions
+     * from the state machine.
+     *
+     * @param self state element to delete
+     * @return parent container or root element
+     */
     public EObject deleteState(EObject self) {
         if (self == null)
             return null;
@@ -1218,6 +1504,13 @@ public class KarpfenDiagramServices {
         return container != null ? container : root;
     }
 
+    /**
+     * Palette/context menu tool deleting a transition edge from the state
+     * machine.
+     *
+     * @param self transition element to delete
+     * @return parent container or root element
+     */
     public EObject deleteTransition(EObject self) {
         if (self == null)
             return null;

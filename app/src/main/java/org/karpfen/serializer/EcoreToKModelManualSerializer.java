@@ -10,9 +10,26 @@ import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 import org.karpfen.transformer.KMetaToEcoreTransformer;
 
-// Manual serializer converts EMF Eobject graph into .kmodel text
+/**
+ * Manual programmatic Java serializer converting dynamic EMF {@link EObject}
+ * instance graphs into {@code .kmodel} DSL text.
+ * Without indentation or any formatting, because it is post-processed through
+ * ANTLR-based Karpfen DSL formatter.
+ * 
+ * Recursively traverses object hierarchies, serializing properties via
+ * {@code prop("...") -> "..."},
+ * embedded containment relations via {@code has("...") -> make object ...}, and
+ * cross-references via {@code knows("...") -> "id"}.
+ */
 public class EcoreToKModelManualSerializer implements KModelSerializer {
 
+    /**
+     * Serializes the dynamic {@link EObject} instance root into Karpfen
+     * {@code .kmodel} DSL text.
+     *
+     * @param rootObject the root instance {@link EObject} to serialize
+     * @return generated {@code .kmodel} source text
+     */
     @Override
     public String serialize(EObject rootObject) {
         if (rootObject == null) {

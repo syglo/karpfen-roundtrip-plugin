@@ -15,18 +15,39 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.resource.impl.ResourceImpl;
 import org.karpfen.design.KarpfenLog;
+import org.karpfen.serializer.AcceleoKStatesSerializer;
 import org.karpfen.serializer.EcoreToKStatesManualSerializer;
+import org.karpfen.serializer.KStatesSerializer;
 import org.karpfen.serializer.KarpfenDslFormatter;
+import org.karpfen.serializer.SerializerMode;
 import org.karpfen.transformer.KStatesToEcoreTransformer;
 
 import dsl.textual.KstatesDSLConverter;
 import states.StateMachine;
 
+/**
+ * Binds {@code .kstates} Karpfend text files extensions/associations in Eclipse
+ * IDE.
+ * EMF {@link org.eclipse.emf.ecore.resource.Resource} implementation for
+ * Karpfen Behavioral State Machine files ({@code .kstates}).
+ * 
+ * Transforms textual state machines into dynamic behavioral statechart graphs
+ * during {@link #doLoad(InputStream, Map)},
+ * and serializes state machine changes back to {@code .kstates} DSL text during
+ * {@link #doSave(OutputStream, Map)}.
+ */
 public class KstatesResource extends ResourceImpl {
+
+    public static SerializerMode ACTIVE_MODE = SerializerMode.ACCELEO_TEMPLATE;
 
     private StateMachine parsedStateMachine;
     private EPackage statePackage;
 
+    /**
+     * Creates a new {@link KstatesResource} for the specified URI.
+     *
+     * @param uri URI of the {@code .kstates} resource
+     */
     public KstatesResource(URI uri) {
         super(uri);
         KarpfenResourceInitializer.init();
@@ -81,7 +102,9 @@ public class KstatesResource extends ResourceImpl {
     @Override
     protected void doSave(OutputStream outputStream, Map<?, ?> options) throws IOException {
         if (!getContents().isEmpty() && getContents().get(0) instanceof EObject smObj) {
-            EcoreToKStatesManualSerializer serializer = new EcoreToKStatesManualSerializer();
+            KStatesSerializer serializer = (ACTIVE_MODE == SerializerMode.ACCELEO_TEMPLATE)
+                    ? new AcceleoKStatesSerializer()
+                    : new EcoreToKStatesManualSerializer();
             String generated = serializer.serialize(smObj);
             String formatted = KarpfenDslFormatter.formatKStates(generated);
             outputStream.write(formatted.getBytes(StandardCharsets.UTF_8));

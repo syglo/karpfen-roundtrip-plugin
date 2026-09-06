@@ -15,6 +15,17 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Transforms a Karpfen textual Metamodel AST into an in-memory dynamic EMF
+ * {@link EPackage}.
+ * 
+ * Responsible for mapping Karpfen type definitions to {@link EClass}
+ * classifiers,
+ * primitive properties to {@link EAttribute}s, and containment/reference
+ * associations
+ * to {@link EReference}s, while attaching documentation and synthetic identity
+ * features.
+ */
 public class KMetaToEcoreTransformer {
 
     private static final String GENMODEL_ANNOTATION_URI = "https://eclipse/emf/GenModel";
@@ -28,6 +39,16 @@ public class KMetaToEcoreTransformer {
     private final Map<String, EClass> eClassMap = new HashMap<>();
     private final Map<String, EStructuralFeature> featureMap = new HashMap<>();
 
+    /**
+     * Transforms a parsed Karpfen {@link Metamodel} AST into a dynamic EMF
+     * {@link EPackage}.
+     *
+     * @param kMetamodel  the parsed Karpfen metamodel AST
+     * @param packageName name for the target {@link EPackage}
+     * @param nsUri       namespace URI for the target {@link EPackage}
+     * @param nsPrefix    namespace prefix for the target {@link EPackage}
+     * @return the fully populated dynamic {@link EPackage}
+     */
     public EPackage transform(Metamodel kMetamodel, String packageName, String nsUri, String nsPrefix) {
         eClassMap.clear();
         featureMap.clear();
@@ -114,6 +135,13 @@ public class KMetaToEcoreTransformer {
         return ePackage;
     }
 
+    /**
+     * Serializes the dynamic {@link EPackage} to a standard {@code .ecore} file.
+     *
+     * @param ePackage   the dynamic EMF package to save
+     * @param outputFile destination {@code .ecore} file on disk
+     * @throws IOException if saving fails
+     */
     public void saveToEcoreFile(EPackage ePackage, File outputFile) throws IOException {
         ResourceSet resourceSet = new ResourceSetImpl();
         resourceSet.getResourceFactoryRegistry().getExtensionToFactoryMap()
@@ -142,10 +170,22 @@ public class KMetaToEcoreTransformer {
         eClass.getEAnnotations().add(annotation);
     }
 
+    /**
+     * Returns an unmodifiable map of class names to their corresponding
+     * {@link EClass} instances.
+     *
+     * @return lookup map for generated {@link EClass}es
+     */
     public Map<String, EClass> getEClassMap() {
         return Collections.unmodifiableMap(eClassMap);
     }
 
+    /**
+     * Returns an unmodifiable map of feature identifiers
+     * ({@code ClassName.featureName}) to their {@link EStructuralFeature}s.
+     *
+     * @return lookup map for generated {@link EStructuralFeature}s
+     */
     public Map<String, EStructuralFeature> getFeatureMap() {
         return Collections.unmodifiableMap(featureMap);
     }

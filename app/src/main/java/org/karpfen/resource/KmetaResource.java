@@ -23,12 +23,28 @@ import org.karpfen.transformer.KMetaToEcoreTransformer;
 import dsl.textual.KmetaDSLConverter;
 import meta.Metamodel;
 
+/**
+ * Binds {@code .kmeta} Karpfend text files extensions/associations in Eclipse
+ * IDE.
+ * EMF {@link org.eclipse.emf.ecore.resource.Resource} implementation for
+ * Karpfen Metamodel files ({@code .kmeta}).
+ * 
+ * Implements Text-to-Diagram (T2D via {@link #doLoad(InputStream, Map)}) and
+ * Diagram-to-Text
+ * (D2T via {@link #doSave(OutputStream, Map)}) synchronization for roundtrip
+ * engineering.
+ */
 public class KmetaResource extends ResourceImpl {
 
     public static SerializerMode ACTIVE_MODE = SerializerMode.ACCELEO_TEMPLATE;
 
     private Metamodel parsedMetamodel;
 
+    /**
+     * Creates a new {@link KmetaResource} for the specified URI.
+     *
+     * @param uri URI of the {@code .kmeta} resource
+     */
     public KmetaResource(URI uri) {
         super(uri);
         KarpfenResourceInitializer.init();

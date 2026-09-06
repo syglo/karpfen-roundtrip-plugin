@@ -41,6 +41,7 @@ plugins {
     application
     `java-library`
     eclipse
+    jacoco
 }
 
 eclipse {
@@ -180,6 +181,34 @@ tasks.named<Test>("test") {
         showStandardStreams = true
         showStackTraces = true
     }
+
+    finalizedBy("jacocoTestReport")
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.named("test"))
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    classDirectories.setFrom(
+        files(classDirectories.files.map {
+            fileTree(it) {
+                exclude(
+                    "org/karpfen/benchmark/**",
+                    "org/karpfen/design/OdesignGenerator*",
+                    "org/karpfen/App*"
+                )
+            }
+        })
+    )
 }
 
 // Compiles karpfen jar if not existing
@@ -325,10 +354,11 @@ tasks.register("eclipsereload") {
 tasks.named<Javadoc>("javadoc") {
     description = "Generates standard offline HTML Javadoc documentation."
     isFailOnError = false
+    dependsOn(tasks.named("compileJava"))
     
-    // Include project source directories and generated ANTLR sources
-    source = fileTree("src/main/java") + fileTree("build/generated/sources")
-    classpath = configurations.compileClasspath.get()
+    // Include project source directories
+    source = sourceSets["main"].allJava
+    classpath = sourceSets["main"].compileClasspath
 
     (options as StandardJavadocDocletOptions).apply {
         encoding = "UTF-8"
