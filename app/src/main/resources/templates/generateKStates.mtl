@@ -1,5 +1,5 @@
 [comment encoding = UTF-8 /]
-[module generateKStates('https://eclipse.dev/emf/')/]
+[module generateKStates('http://www.eclipse.org/emf/2002/Ecore')/]
 
 [import org::karpfen::serializer::AcceleoServices/]
 

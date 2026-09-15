@@ -148,6 +148,7 @@ public class BenchmarkMetrics {
                 getThroughputOpsPerSec(), getIterations(), warmupCount);
     }
 
+    @SuppressWarnings("removal")
     public static double measureUsedMemoryMb() {
         System.gc();
         System.runFinalization();

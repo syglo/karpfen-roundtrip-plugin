@@ -66,9 +66,14 @@ val eclipseHomePath: String = project.findProperty("eclipseHome") as? String
 val eclipseHomeDirectory = file(eclipseHomePath)
 val eclipsePluginsDir = file("$eclipseHomePath/plugins")
 
+// Eclipse ELK and Sirius integration video
+// https://eclipse.dev/elk/reference.html
+// https://blog.obeosoft.com/a-picture-is-worth-a-thousand-words
+
 // Modeling, EMF, Sirius, UI and Runtime bundle prefixes
 val allowedPrefixes = listOf(
     "org.eclipse.sirius",
+    "org.eclipse.elk",
     "org.eclipse.emf",
     "org.eclipse.acceleo",
     "org.eclipse.gmf",

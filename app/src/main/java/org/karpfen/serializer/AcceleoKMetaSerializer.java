@@ -24,7 +24,7 @@ public class AcceleoKMetaSerializer implements KMetaSerializer {
      * @return generated {@code .kmeta} text as string, or empty string if @param
      *         ePackage is null
      */
-    @Override 
+    @Override
     public String serialize(EPackage ePackage) {
         if (ePackage == null) {
             return "";

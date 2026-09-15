@@ -110,23 +110,83 @@ public class DirectEditMicroParsingTest {
         robotClass.getEStructuralFeatures().add(hasRef);
 
         assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
 
-        // Convert scalar -> list
+        // Convert scalar -> list using Karpfen [list]
         services.editKMetaEdge(hasRef, "pos [list]");
         assertEquals("pos", hasRef.getName());
         assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
-        assertEquals("pos [list]", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("*", services.getKMetaEdgeEndLabel(hasRef));
 
         // Convert list -> scalar
         services.editKMetaEdge(hasRef, "pos");
         assertEquals("pos", hasRef.getName());
         assertEquals(1, hasRef.getUpperBound());
         assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
+
+        // Convert scalar -> list using UML 2.5 [*] notation
+        services.editKMetaEdge(hasRef, "pos[*]");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
+        assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("*", services.getKMetaEdgeEndLabel(hasRef));
 
         services.editKMetaEdge(hasRef, "position : Point");
         assertEquals("position", hasRef.getName());
         assertEquals(pointClass, hasRef.getEType());
         assertEquals(1, hasRef.getUpperBound());
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
+
+        // Direct-edit end label with raw multiplicity tokens
+        services.editKMetaEdge(hasRef, "*");
+        assertEquals("position", hasRef.getName());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
+        assertEquals("*", services.getKMetaEdgeEndLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "1");
+        assertEquals("position", hasRef.getName());
+        assertEquals(1, hasRef.getUpperBound());
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
+
+        // Direct-edit middle label with trailing multiplicity suffix
+        // e.g. pos *, pos 1, pos [1]
+        services.editKMetaEdge(hasRef, "pos *");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
+        assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("*", services.getKMetaEdgeEndLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "pos 1");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(1, hasRef.getUpperBound());
+        assertEquals("pos", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "pos [1]");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(1, hasRef.getUpperBound());
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "pos [list]");
+        assertEquals("pos", hasRef.getName());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
+        assertEquals("*", services.getKMetaEdgeEndLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "position : Point *");
+        assertEquals("position", hasRef.getName());
+        assertEquals(pointClass, hasRef.getEType());
+        assertEquals(ETypedElement.UNBOUNDED_MULTIPLICITY, hasRef.getUpperBound());
+        assertEquals("position", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("*", services.getKMetaEdgeEndLabel(hasRef));
+
+        services.editKMetaEdge(hasRef, "position : Point 1");
+        assertEquals("position", hasRef.getName());
+        assertEquals(pointClass, hasRef.getEType());
+        assertEquals(1, hasRef.getUpperBound());
+        assertEquals("position", services.getKMetaEdgeLabel(hasRef));
+        assertEquals("1", services.getKMetaEdgeEndLabel(hasRef));
 
         EReference knowsRef = factory.createEReference();
         knowsRef.setName("walls");
@@ -135,12 +195,14 @@ public class DirectEditMicroParsingTest {
         knowsRef.setEType(wallClass);
         robotClass.getEStructuralFeatures().add(knowsRef);
 
-        assertEquals("walls [list]", services.getKMetaEdgeLabel(knowsRef));
+        assertEquals("walls", services.getKMetaEdgeLabel(knowsRef));
+        assertEquals("*", services.getKMetaEdgeEndLabel(knowsRef));
 
         services.editKMetaEdge(knowsRef, "wall");
         assertEquals("wall", knowsRef.getName());
         assertEquals(1, knowsRef.getUpperBound());
         assertEquals("wall", services.getKMetaEdgeLabel(knowsRef));
+        assertEquals("0..1", services.getKMetaEdgeEndLabel(knowsRef));
 
         services.editKMetaEdge(knowsRef, "knows(unclosed syntax");
         assertEquals("wall", knowsRef.getName());
@@ -348,5 +410,50 @@ public class DirectEditMicroParsingTest {
         services.deleteInstanceLink(robot, wall1, false);
         assertFalse(robot.eIsSet(knowsClosestWall));
         assertFalse(wallsList.contains(wall1));
+    }
+
+    @Test
+    void testKMetaDocumentationLookup() {
+        EClass robotClass = factory.createEClass();
+        robotClass.setName("Robot");
+
+        // Initially no documentation
+        assertEquals("", services.getKMetaDocumentation(robotClass));
+
+        // Add GenModel documentation annotation
+        org.eclipse.emf.ecore.EAnnotation ann = factory.createEAnnotation();
+        ann.setSource("https://eclipse/emf/GenModel");
+        ann.getDetails().put("documentation", "A cleaning robot that navigates autonomously.");
+        robotClass.getEAnnotations().add(ann);
+
+        assertEquals("A cleaning robot that navigates autonomously.", services.getKMetaDocumentation(robotClass));
+    }
+
+    @Test
+    void testKStatesEditStateName() {
+        EClass stateClass = factory.createEClass();
+        stateClass.setName("State");
+        EAttribute nameAttr = factory.createEAttribute();
+        nameAttr.setName("name");
+        nameAttr.setEType(EcorePackage.Literals.ESTRING);
+        stateClass.getEStructuralFeatures().add(nameAttr);
+
+        EAttribute initAttr = factory.createEAttribute();
+        initAttr.setName("isInitial");
+        initAttr.setEType(EcorePackage.Literals.EBOOLEAN);
+        stateClass.getEStructuralFeatures().add(initAttr);
+
+        EPackage pkg = factory.createEPackage();
+        pkg.getEClassifiers().add(stateClass);
+
+        EObject state = pkg.getEFactoryInstance().create(stateClass);
+        state.eSet(nameAttr, "obstacle_state");
+
+        services.editStateName(state, "react to obstacle");
+        assertEquals("react to obstacle", state.eGet(nameAttr));
+
+        services.editStateName(state, "<initial> drive fast");
+        assertEquals("drive fast", state.eGet(nameAttr));
+        assertTrue((Boolean) state.eGet(initAttr));
     }
 }

@@ -144,7 +144,8 @@ public class KarpfenDiagramServices {
     }
 
     /**
-     * Computes the display label for an {@link EReference} edge in a KMeta diagram.
+     * Computes the display label for an {@link EReference} edge in a KMeta diagram
+     * representing the role name.
      *
      * @param ref the metamodel reference
      * @return formatted reference label
@@ -152,10 +153,45 @@ public class KarpfenDiagramServices {
     public String getKMetaEdgeLabel(EReference ref) {
         if (ref == null || ref.getName() == null)
             return "";
-        if (ref.isMany() || ref.getUpperBound() == ETypedElement.UNBOUNDED_MULTIPLICITY) {
-            return ref.getName() + " [list]";
-        }
         return ref.getName();
+    }
+
+    /**
+     * Computes the UML multiplicity for end label in an {@link EReference} edge
+     * (e.g. {@code *}, {@code 1}, or {@code 0..1}).
+     *
+     * @param ref the metamodel reference
+     * @return multiplicity end label
+     */
+    public String getKMetaEdgeEndLabel(EReference ref) {
+        if (ref == null)
+            return "";
+        if (ref.isMany() || ref.getUpperBound() == ETypedElement.UNBOUNDED_MULTIPLICITY) {
+            return "*";
+        }
+        return ref.isContainment() ? "1" : "0..1";
+    }
+
+    /**
+     * Retrieves the documentation string from stored in the GenModel EAnnotation of
+     * an {@link EObject} -> EClass/EStructuralFeature or
+     * outputs an empty string if not present.
+     *
+     * @param elem the metamodel element
+     * @return documentation text or empty string
+     */
+    public String getKMetaDocumentation(EObject elem) {
+        if (elem instanceof org.eclipse.emf.ecore.EModelElement modelElem) {
+            EAnnotation ann = modelElem.getEAnnotation("https://eclipse/emf/GenModel");
+            if (ann == null) {
+                ann = modelElem.getEAnnotation("http://www.eclipse.org/emf/2002/GenModel");
+            }
+            if (ann != null && ann.getDetails().containsKey("documentation")) {
+                String doc = ann.getDetails().get("documentation");
+                return doc != null ? doc : "";
+            }
+        }
+        return "";
     }
 
     // ! KMeta ANTLR micro parser, input subsitution
@@ -297,6 +333,22 @@ public class KarpfenDiagramServices {
         if (ref == null || input == null || input.isBlank())
             return ref;
         String raw = input.trim();
+
+        // Direct-edit handling when user edits end label multiplicity directly
+        if (raw.equals("*") || raw.equals("[*]") || raw.equals("[list]") || raw.equalsIgnoreCase("list")
+                || raw.equals("0..*") || raw.equals("[0..*]") || raw.equals("[]")) {
+            ref.setUpperBound(ETypedElement.UNBOUNDED_MULTIPLICITY);
+            markTargetResourceDirty(ref);
+            KarpfenLog.trace("DirectEdit-KMeta", "Updated ref " + ref.getName() + " multiplicity to *");
+            return ref;
+        } else if (raw.equals("1") || raw.equals("[1]") || raw.equals("0..1") || raw.equals("[0..1]")
+                || raw.equalsIgnoreCase("scalar") || raw.equalsIgnoreCase("single")) {
+            ref.setUpperBound(1);
+            markTargetResourceDirty(ref);
+            KarpfenLog.trace("DirectEdit-KMeta", "Updated ref " + ref.getName() + " multiplicity to 1");
+            return ref;
+        }
+
         String kw = ref.isContainment() ? "has" : "knows";
         String existingTarget = (ref.getEType() != null && ref.getEType().getName() != null) ? ref.getEType().getName()
                 : "Type";
@@ -314,19 +366,27 @@ public class KarpfenDiagramServices {
                 String inner = typePart.substring(5, typePart.length() - 1).trim().replace("\"", "");
                 snippet = inner.contains(" ") || inner.isEmpty() ? raw
                         : String.format("%s(\"%s\", list(\"%s\"))", kw, name, inner);
-            } else if (typePart.endsWith("[list]") || typePart.endsWith("[*]") || typePart.endsWith("[0..*]")
-                    || typePart.endsWith("[]")) {
-                String inner = typePart.substring(0, typePart.indexOf('[')).trim().replace("\"", "");
-                snippet = String.format("%s(\"%s\", list(\"%s\"))", kw, name, inner.isEmpty() ? existingTarget : inner);
+            } else if (hasListSuffix(typePart)) {
+                String cleanType = stripListSuffix(typePart);
+                snippet = String.format("%s(\"%s\", list(\"%s\"))", kw, name,
+                        cleanType.isEmpty() ? existingTarget : cleanType);
+            } else if (hasScalarSuffix(typePart)) {
+                String cleanType = stripScalarSuffix(typePart);
+                snippet = String.format("%s(\"%s\", \"%s\")", kw, name,
+                        cleanType.isEmpty() ? existingTarget : cleanType);
             } else {
                 String cleanedType = typePart.replace("\"", "").trim();
                 snippet = cleanedType.contains(" ") || cleanedType.isEmpty() ? raw
                         : String.format("%s(\"%s\", \"%s\")", kw, name, cleanedType);
             }
-        } else if (raw.endsWith("[list]") || raw.endsWith("[*]") || raw.endsWith("[0..*]") || raw.endsWith("[]")) {
-            String name = raw.substring(0, raw.indexOf('[')).trim().replace("\"", "");
+        } else if (hasListSuffix(raw)) {
+            String name = stripListSuffix(raw);
             snippet = name.contains(" ") || name.isEmpty() ? raw
                     : String.format("%s(\"%s\", list(\"%s\"))", kw, name, existingTarget);
+        } else if (hasScalarSuffix(raw)) {
+            String name = stripScalarSuffix(raw);
+            snippet = name.contains(" ") || name.isEmpty() ? raw
+                    : String.format("%s(\"%s\", \"%s\")", kw, name, existingTarget);
         } else if (!raw.contains(" ") && !raw.contains("\t") && !raw.contains("\n") && !raw.contains("(")
                 && !raw.contains(")")) {
             snippet = String.format("%s(\"%s\", \"%s\")", kw, raw.replace("\"", ""), existingTarget);
@@ -372,6 +432,7 @@ public class KarpfenDiagramServices {
      * @param clas the metamodel class to toggle as root
      * @return the class
      */
+    @SuppressWarnings("unlikely-arg-type")
     public EObject toggleRootClass(EClass clas) {
         if (clas == null || clas.getEPackage() == null)
             return clas;
@@ -1167,7 +1228,7 @@ public class KarpfenDiagramServices {
         EStructuralFeature nameFeat = state.eClass().getEStructuralFeature("name");
         String name = (nameFeat != null && state.eIsSet(nameFeat)) ? (String) state.eGet(nameFeat) : "State";
 
-        return (isInit != null && isInit) ? "<initial> " + name : name;
+        return (isInit != null && isInit ? "<initial> " : "") + name;
     }
 
     /**
@@ -1244,18 +1305,10 @@ public class KarpfenDiagramServices {
             return "";
         }
 
-        String clean = cond.replaceAll("\\s+", " ").trim();
+        String clean = cond.trim();
         if ("VALUE(\"true\")".equalsIgnoreCase(clean) || "true".equalsIgnoreCase(clean)
                 || "\"true\"".equalsIgnoreCase(clean)) {
             return "";
-        }
-
-        // Clean EVAL { return $(x) ... } -> [x ...]
-        if (clean.startsWith("EVAL {")) {
-            clean = clean.substring(6, clean.length() - 1).trim();
-            if (clean.startsWith("return ")) {
-                clean = clean.substring(7).trim();
-            }
         }
 
         // Strip macro and variable wrappers $(...)
@@ -1774,6 +1827,52 @@ public class KarpfenDiagramServices {
                 ref.setEType(targetEClass);
             }
         }
+    }
+
+    private boolean hasListSuffix(String str) {
+        if (str == null)
+            return false;
+        String s = str.trim();
+        return s.endsWith(" [list]") || s.endsWith("[list]") || s.endsWith(" [*]") || s.endsWith("[*]")
+                || s.endsWith(" [0..*]") || s.endsWith("[0..*]") || s.endsWith(" []") || s.endsWith("[]")
+                || s.endsWith(" *") || (s.endsWith("*") && s.length() > 1) || s.endsWith(" list")
+                || s.endsWith(" 0..*");
+    }
+
+    private boolean hasScalarSuffix(String str) {
+        if (str == null)
+            return false;
+        String s = str.trim();
+        return s.endsWith(" [1]") || s.endsWith("[1]") || s.endsWith(" 1")
+                || s.endsWith(" [0..1]") || s.endsWith("[0..1]") || s.endsWith(" 0..1")
+                || s.endsWith(" [single]") || s.endsWith("[single]") || s.endsWith(" single");
+    }
+
+    private String stripListSuffix(String str) {
+        if (str == null)
+            return "";
+        String s = str.trim();
+        String[] suffixes = { " [list]", "[list]", " [*]", "[*]", " [0..*]", "[0..*]", " []", "[]", " *", "*", " list",
+                " 0..*" };
+        for (String suffix : suffixes) {
+            if (s.endsWith(suffix)) {
+                return s.substring(0, s.length() - suffix.length()).trim().replace("\"", "");
+            }
+        }
+        return s.trim().replace("\"", "");
+    }
+
+    private String stripScalarSuffix(String str) {
+        if (str == null)
+            return "";
+        String s = str.trim();
+        String[] suffixes = { " [1]", "[1]", " 1", " [0..1]", "[0..1]", " 0..1", " [single]", "[single]", " single" };
+        for (String suffix : suffixes) {
+            if (s.endsWith(suffix)) {
+                return s.substring(0, s.length() - suffix.length()).trim().replace("\"", "");
+            }
+        }
+        return s.trim().replace("\"", "");
     }
 
     private Object convertStringToValue(String val, EClassifier classifier) {

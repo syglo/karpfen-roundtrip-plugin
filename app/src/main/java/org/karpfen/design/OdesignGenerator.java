@@ -13,7 +13,6 @@ import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.resource.impl.ResourceSetImpl;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
-import org.eclipse.sirius.diagram.description.CenteringStyle;
 import org.eclipse.sirius.diagram.ContainerLayout;
 import org.eclipse.sirius.diagram.DiagramPackage;
 import org.eclipse.sirius.diagram.EdgeArrows;
@@ -21,15 +20,23 @@ import org.eclipse.sirius.diagram.EdgeRouting;
 import org.eclipse.sirius.diagram.LabelPosition;
 import org.eclipse.sirius.diagram.LineStyle;
 import org.eclipse.sirius.diagram.ResizeKind;
-import org.eclipse.sirius.diagram.description.AdditionalLayer;
+import org.eclipse.sirius.diagram.description.CenteringStyle;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
+import org.eclipse.sirius.diagram.description.CustomLayoutConfiguration;
 import org.eclipse.sirius.diagram.description.DescriptionFactory;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
+import org.eclipse.sirius.diagram.description.DoubleLayoutOption;
 import org.eclipse.sirius.diagram.description.EdgeMapping;
+import org.eclipse.sirius.diagram.description.EnumLayoutOption;
+import org.eclipse.sirius.diagram.description.EnumLayoutValue;
+import org.eclipse.sirius.diagram.description.EnumSetLayoutOption;
 import org.eclipse.sirius.diagram.description.Layer;
+import org.eclipse.sirius.diagram.description.LayoutOptionTarget;
 import org.eclipse.sirius.diagram.description.NodeMapping;
 import org.eclipse.sirius.diagram.description.style.CenterLabelStyleDescription;
+import org.eclipse.sirius.diagram.description.style.DotDescription;
 import org.eclipse.sirius.diagram.description.style.EdgeStyleDescription;
+import org.eclipse.sirius.diagram.description.style.EndLabelStyleDescription;
 import org.eclipse.sirius.diagram.description.style.FlatContainerStyleDescription;
 import org.eclipse.sirius.diagram.description.style.NodeStyleDescription;
 import org.eclipse.sirius.diagram.description.style.StyleFactory;
@@ -130,85 +137,8 @@ public class OdesignGenerator {
         ///////
         // !!! KMeta class diagram
         ///////
-        DiagramDescription kmetaDiagram = DescriptionFactory.eINSTANCE.createDiagramDescription();
-        kmetaDiagram.setName("KMetaClassDiagram");
-        kmetaDiagram.setLabel("KMeta Class Diagram");
-        kmetaDiagram.setDomainClass("ecore.EPackage");
-        kmetaDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
+        DiagramDescription kmetaDiagram = buildKMetaClassDiagram();
         viewpoint.getOwnedRepresentations().add(kmetaDiagram);
-
-        Layer kmetaDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
-        kmetaDefaultLayer.setName("Default");
-        kmetaDefaultLayer.setLabel("Default");
-        kmetaDiagram.setDefaultLayer(kmetaDefaultLayer);
-
-        // Class container node - EClass
-        ContainerMapping eClassNode = DescriptionFactory.eINSTANCE.createContainerMapping();
-        eClassNode.setName("EClassNode");
-        eClassNode.setDomainClass("ecore.EClass");
-        eClassNode.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass)");
-        eClassNode.setChildrenPresentation(ContainerLayout.LIST);
-
-        FlatContainerStyleDescription classStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
-        classStyle.setLabelExpression("aql:self.getKMetaClassLabel()");
-        classStyle.setShowIcon(true);
-        classStyle.setBorderSizeComputationExpression("1");
-        classStyle.setWidthComputationExpression("14");
-        classStyle.setHeightComputationExpression("4");
-        eClassNode.setStyle(classStyle);
-        kmetaDefaultLayer.getContainerMappings().add(eClassNode);
-
-        // Class attributes subnodes - EAttribute in EClass
-        NodeMapping attributeNode = DescriptionFactory.eINSTANCE.createNodeMapping();
-        attributeNode.setName("EAttributeNode");
-        attributeNode.setDomainClass("ecore.EAttribute");
-        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes->select(a | a.name != '__id__')");
-
-        NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
-        attrStyle.setLabelExpression("aql:self.getKMetaAttributeLabel()");
-        attrStyle.setShowIcon(true);
-        attrStyle.setLabelAlignment(LabelAlignment.LEFT);
-        attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
-        attrStyle.setBorderSizeComputationExpression("0");
-        attrStyle.setResizeKind(ResizeKind.NONE_LITERAL);
-        attributeNode.setStyle(attrStyle);
-        eClassNode.getSubNodeMappings().add(attributeNode);
-
-        // Straight Routing Layer
-        AdditionalLayer kmetaStraightLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
-        kmetaStraightLayer.setName("StraightRoutingLayer");
-        kmetaStraightLayer.setLabel("Direct (Straight) Routing");
-        kmetaStraightLayer.setActiveByDefault(true);
-        kmetaStraightLayer.setOptional(true);
-
-        EdgeMapping kmetaHasEdge = createKmetaEdgeMapping("HasCompositionEdge", true, eClassNode,
-                EdgeRouting.STRAIGHT_LITERAL);
-        kmetaStraightLayer.getEdgeMappings().add(kmetaHasEdge);
-
-        EdgeMapping kmetaKnowsEdge = createKmetaEdgeMapping("KnowsAssociationEdge", false, eClassNode,
-                EdgeRouting.STRAIGHT_LITERAL);
-        kmetaStraightLayer.getEdgeMappings().add(kmetaKnowsEdge);
-        kmetaDiagram.getAdditionalLayers().add(kmetaStraightLayer);
-
-        // Orthogonal Routing Layer
-        AdditionalLayer kmetaOrthoLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
-        kmetaOrthoLayer.setName("OrthogonalRoutingLayer");
-        kmetaOrthoLayer.setLabel("Orthogonal (Manhattan) Routing");
-        kmetaOrthoLayer.setActiveByDefault(false);
-        kmetaOrthoLayer.setOptional(true);
-
-        EdgeMapping orthoKmetaHasEdge = createKmetaEdgeMapping("OrthoHasCompositionEdge", true, eClassNode,
-                EdgeRouting.MANHATTAN_LITERAL);
-        kmetaOrthoLayer.getEdgeMappings().add(orthoKmetaHasEdge);
-
-        EdgeMapping orthoKmetaKnowsEdge = createKmetaEdgeMapping("OrthoKnowsAssociationEdge", false, eClassNode,
-                EdgeRouting.MANHATTAN_LITERAL);
-        kmetaOrthoLayer.getEdgeMappings().add(orthoKmetaKnowsEdge);
-        kmetaDiagram.getAdditionalLayers().add(kmetaOrthoLayer);
-
-        // KMETA TOOLS
-        buildKMetaToolSections(kmetaDefaultLayer, eClassNode, attributeNode,
-                kmetaHasEdge, kmetaKnowsEdge, orthoKmetaHasEdge, orthoKmetaKnowsEdge);
 
         ///////
         // !!! KModel object diagram
@@ -219,6 +149,7 @@ public class OdesignGenerator {
         kmodelDiagram.setDomainClass("ecore.EObject");
         kmodelDiagram.setPreconditionExpression("aql:self.isKModelRoot()");
         kmodelDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
+        kmodelDiagram.setLayout(createKModelElkLayoutConfiguration());
         viewpoint.getOwnedRepresentations().add(kmodelDiagram);
 
         Layer kmodelDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
@@ -238,8 +169,8 @@ public class OdesignGenerator {
         objStyle.setLabelAlignment(LabelAlignment.LEFT);
         objStyle.setShowIcon(true);
         objStyle.setBorderSizeComputationExpression("1");
-        objStyle.setWidthComputationExpression("16");
-        objStyle.setHeightComputationExpression("4");
+        objStyle.setWidthComputationExpression("0");
+        objStyle.setHeightComputationExpression("0");
         eObjectNode.setStyle(objStyle);
         kmodelDefaultLayer.getContainerMappings().add(eObjectNode);
 
@@ -259,41 +190,19 @@ public class OdesignGenerator {
         slotNode.setStyle(slotStyle);
         eObjectNode.getSubNodeMappings().add(slotNode);
 
-        // Straight Routing Layer
-        AdditionalLayer kmodelStraightLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
-        kmodelStraightLayer.setName("StraightRoutingLayer");
-        kmodelStraightLayer.setLabel("Direct (Straight) Routing");
-        kmodelStraightLayer.setActiveByDefault(true);
-        kmodelStraightLayer.setOptional(true);
-
+        // Edge has - Containment link Orthogonal/Manhattan
         EdgeMapping instanceHasEdge = createKmodelEdgeMapping("InstanceContainmentEdge", true, eObjectNode,
-                EdgeRouting.STRAIGHT_LITERAL);
-        kmodelStraightLayer.getEdgeMappings().add(instanceHasEdge);
+                EdgeRouting.MANHATTAN_LITERAL);
+        kmodelDefaultLayer.getEdgeMappings().add(instanceHasEdge);
 
+        // Edge knows - Reference link Orthogonal/Manhattan
         EdgeMapping instanceKnowsEdge = createKmodelEdgeMapping("InstanceReferenceEdge", false, eObjectNode,
-                EdgeRouting.STRAIGHT_LITERAL);
-        kmodelStraightLayer.getEdgeMappings().add(instanceKnowsEdge);
-        kmodelDiagram.getAdditionalLayers().add(kmodelStraightLayer);
+                EdgeRouting.MANHATTAN_LITERAL);
+        kmodelDefaultLayer.getEdgeMappings().add(instanceKnowsEdge);
 
-        // Orthogonal Routing Layer
-        AdditionalLayer kmodelOrthoLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
-        kmodelOrthoLayer.setName("OrthogonalRoutingLayer");
-        kmodelOrthoLayer.setLabel("Orthogonal (Manhattan) Routing");
-        kmodelOrthoLayer.setActiveByDefault(false);
-        kmodelOrthoLayer.setOptional(true);
-
-        EdgeMapping orthoInstanceHasEdge = createKmodelEdgeMapping("OrthoInstanceContainmentEdge", true,
-                eObjectNode, EdgeRouting.MANHATTAN_LITERAL);
-        kmodelOrthoLayer.getEdgeMappings().add(orthoInstanceHasEdge);
-
-        EdgeMapping orthoInstanceKnowsEdge = createKmodelEdgeMapping("OrthoInstanceReferenceEdge", false,
-                eObjectNode, EdgeRouting.MANHATTAN_LITERAL);
-        kmodelOrthoLayer.getEdgeMappings().add(orthoInstanceKnowsEdge);
-        kmodelDiagram.getAdditionalLayers().add(kmodelOrthoLayer);
-
-        // KModel TOOLS
+        // KMODEL TOOLS
         buildKModelToolSections(kmodelDefaultLayer, eObjectNode, slotNode,
-                instanceHasEdge, instanceKnowsEdge, orthoInstanceHasEdge, orthoInstanceKnowsEdge);
+                instanceHasEdge, instanceKnowsEdge);
 
         ///////
         // !!! KStates statechart diagram
@@ -304,6 +213,7 @@ public class OdesignGenerator {
         kstatesDiagram.setDomainClass("ecore.EObject");
         kstatesDiagram.setPreconditionExpression("aql:self.isKStatesRoot()");
         kstatesDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
+        kstatesDiagram.setLayout(createKStatesElkLayoutConfiguration());
         viewpoint.getOwnedRepresentations().add(kstatesDiagram);
 
         Layer kstatesDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
@@ -311,84 +221,117 @@ public class OdesignGenerator {
         kstatesDefaultLayer.setLabel("Default");
         kstatesDiagram.setDefaultLayer(kstatesDefaultLayer);
 
-        // State container node, list header, entry, do, sub-states
+        // State container node, free-form composite container
         ContainerMapping stateNode = DescriptionFactory.eINSTANCE.createContainerMapping();
         stateNode.setName("StateNode");
         stateNode.setDomainClass("ecore.EObject");
-        stateNode.setSemanticCandidatesExpression(
-                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'State')");
-        stateNode.setChildrenPresentation(ContainerLayout.LIST);
+        stateNode.setSemanticCandidatesExpression("aql:self.states");
+        stateNode.setChildrenPresentation(ContainerLayout.FREE_FORM);
 
         FlatContainerStyleDescription stateStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
         stateStyle.setLabelExpression("aql:self.getStateHeaderLabel()");
         stateStyle.setLabelAlignment(LabelAlignment.LEFT);
         stateStyle.setShowIcon(true);
         stateStyle.setBorderSizeComputationExpression("1");
-        stateStyle.setWidthComputationExpression("18");
-        stateStyle.setHeightComputationExpression("5");
+        stateStyle.setWidthComputationExpression("15");
+        stateStyle.setHeightComputationExpression("4");
         stateNode.setStyle(stateStyle);
         kstatesDefaultLayer.getContainerMappings().add(stateNode);
 
-        // ENTRY action subnode
-        NodeMapping entryActionNode = DescriptionFactory.eINSTANCE.createNodeMapping();
-        entryActionNode.setName("EntryActionNode");
-        entryActionNode.setDomainClass("ecore.EObject");
-        entryActionNode.setSemanticCandidatesExpression(
-                "aql:if self.entryAction != null and self.entryAction != '' then Sequence{self} else Sequence{} endif");
+        // Actions Compartment for Composite States in list form
+        ContainerMapping compositeActionsNode = DescriptionFactory.eINSTANCE.createContainerMapping();
+        compositeActionsNode.setName("CompositeStateActions");
+        compositeActionsNode.setDomainClass("ecore.EObject");
+        compositeActionsNode.setSemanticCandidatesExpression(
+                "aql:if (self.entryAction != null and self.entryAction != '') or (self.doAction != null and self.doAction != '') then Sequence{self} else Sequence{} endif");
+        compositeActionsNode.setChildrenPresentation(ContainerLayout.LIST);
 
-        NodeStyleDescription entryStyle = StyleFactory.eINSTANCE.createSquareDescription();
-        entryStyle.setLabelExpression("aql:self.getEntryLabel()");
-        entryStyle.setShowIcon(false);
-        entryStyle.setLabelAlignment(LabelAlignment.LEFT);
-        entryStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
-        entryStyle.setBorderSizeComputationExpression("0");
-        entryStyle.setResizeKind(ResizeKind.NONE_LITERAL);
-        entryActionNode.setStyle(entryStyle);
-        stateNode.getSubNodeMappings().add(entryActionNode);
+        FlatContainerStyleDescription actionsStyle = StyleFactory.eINSTANCE
+                .createFlatContainerStyleDescription();
+        actionsStyle.setLabelExpression("aql:'Actions'");
+        actionsStyle.setLabelAlignment(LabelAlignment.LEFT);
+        actionsStyle.setShowIcon(false);
+        actionsStyle.setBorderSizeComputationExpression("1");
+        actionsStyle.setWidthComputationExpression("0");
+        actionsStyle.setHeightComputationExpression("0");
+        compositeActionsNode.setStyle(actionsStyle);
 
-        // DO action subnode
-        NodeMapping doActionNode = DescriptionFactory.eINSTANCE.createNodeMapping();
-        doActionNode.setName("DoActionNode");
-        doActionNode.setDomainClass("ecore.EObject");
-        doActionNode.setSemanticCandidatesExpression(
-                "aql:if self.doAction != null and self.doAction != '' then Sequence{self} else Sequence{} endif");
+        compositeActionsNode.getSubNodeMappings().add(createEntryActionNode());
+        compositeActionsNode.getSubNodeMappings().add(createDoActionNode());
+        stateNode.getSubContainerMappings().add(compositeActionsNode);
 
-        NodeStyleDescription doStyle = StyleFactory.eINSTANCE.createSquareDescription();
-        doStyle.setLabelExpression("aql:self.getDoLabel()");
-        doStyle.setShowIcon(false);
-        doStyle.setLabelAlignment(LabelAlignment.LEFT);
-        doStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
-        doStyle.setBorderSizeComputationExpression("0");
-        doStyle.setResizeKind(ResizeKind.NONE_LITERAL);
-        doActionNode.setStyle(doStyle);
-        stateNode.getSubNodeMappings().add(doActionNode);
+        // Initial Pseudostate Node - black circle, for composite states without actions
+        NodeMapping initialPseudostateNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        initialPseudostateNode.setName("InitialPseudostateNode");
+        initialPseudostateNode.setDomainClass("ecore.EObject");
+        initialPseudostateNode.setSemanticCandidatesExpression(
+                "aql:if self.innerStates->notEmpty() and (self.entryAction = null or self.entryAction = '') and (self.doAction = null or self.doAction = '') then Sequence{self} else Sequence{} endif");
 
-        // Straight Routing Layer for Transitions
-        AdditionalLayer kstatesStraightLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
-        kstatesStraightLayer.setName("StraightRoutingLayer");
-        kstatesStraightLayer.setLabel("Direct (Straight) Routing");
-        kstatesStraightLayer.setActiveByDefault(true);
-        kstatesStraightLayer.setOptional(true);
+        DotDescription dotStyle = StyleFactory.eINSTANCE.createDotDescription();
+        dotStyle.setLabelExpression("aql:''");
+        dotStyle.setShowIcon(false);
+        dotStyle.setStrokeSizeComputationExpression("0");
+        dotStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        initialPseudostateNode.setStyle(dotStyle);
+        stateNode.getSubNodeMappings().add(initialPseudostateNode);
 
-        EdgeMapping transitionEdge = createKstatesTransitionEdgeMapping("TransitionEdge", stateNode,
-                EdgeRouting.STRAIGHT_LITERAL);
-        kstatesStraightLayer.getEdgeMappings().add(transitionEdge);
-        kstatesDiagram.getAdditionalLayers().add(kstatesStraightLayer);
+        // Leaf Nested Substate container node
+        ContainerMapping subStateNode = DescriptionFactory.eINSTANCE.createContainerMapping();
+        subStateNode.setName("SubStateNode");
+        subStateNode.setDomainClass("ecore.EObject");
+        subStateNode.setSemanticCandidatesExpression("aql:self.innerStates");
+        subStateNode.setChildrenPresentation(ContainerLayout.LIST);
 
-        // Orthogonal Routing Layer for Transitions
-        AdditionalLayer kstatesOrthoLayer = DescriptionFactory.eINSTANCE.createAdditionalLayer();
-        kstatesOrthoLayer.setName("OrthogonalRoutingLayer");
-        kstatesOrthoLayer.setLabel("Orthogonal (Manhattan) Routing");
-        kstatesOrthoLayer.setActiveByDefault(false);
-        kstatesOrthoLayer.setOptional(true);
+        FlatContainerStyleDescription subStateStyle = StyleFactory.eINSTANCE
+                .createFlatContainerStyleDescription();
+        subStateStyle.setLabelExpression("aql:self.getStateHeaderLabel()");
+        subStateStyle.setLabelAlignment(LabelAlignment.LEFT);
+        subStateStyle.setShowIcon(true);
+        subStateStyle.setBorderSizeComputationExpression("1");
+        subStateStyle.setWidthComputationExpression("0");
+        subStateStyle.setHeightComputationExpression("0");
+        subStateNode.setStyle(subStateStyle);
 
-        EdgeMapping orthoTransitionEdge = createKstatesTransitionEdgeMapping("OrthoTransitionEdge", stateNode,
-                EdgeRouting.MANHATTAN_LITERAL);
-        kstatesOrthoLayer.getEdgeMappings().add(orthoTransitionEdge);
-        kstatesDiagram.getAdditionalLayers().add(kstatesOrthoLayer);
+        // Independent action compartments for sub-states
+        subStateNode.getSubNodeMappings().add(createEntryActionNode());
+        subStateNode.getSubNodeMappings().add(createDoActionNode());
 
-        // KStates TOOLS
-        buildKStatesToolSections(kstatesDefaultLayer, stateNode, transitionEdge, orthoTransitionEdge);
+        stateNode.getSubContainerMappings().add(subStateNode);
+
+        // External Transitions - for not nested states in top level
+        EdgeMapping transitionEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        transitionEdge.setName("TransitionEdge");
+        transitionEdge.setDomainClass("ecore.EObject");
+        transitionEdge.setUseDomainElement(true);
+        transitionEdge.setSemanticCandidatesExpression(
+                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'Transition' and (o.sourceState == null or o.targetState == null or o.sourceState.innerStates->excludes(o.targetState)))");
+        transitionEdge.getSourceMapping().add(stateNode);
+        transitionEdge.getSourceMapping().add(subStateNode);
+        transitionEdge.getTargetMapping().add(stateNode);
+        transitionEdge.getTargetMapping().add(subStateNode);
+        transitionEdge.setSourceFinderExpression("aql:self.sourceState");
+        transitionEdge.setTargetFinderExpression("aql:self.targetState");
+        applyTransitionStyle(transitionEdge);
+        kstatesDefaultLayer.getEdgeMappings().add(transitionEdge);
+
+        // Internal Entry Transitions between sub-states inside parent state
+        EdgeMapping internalTransitionEdge = DescriptionFactory.eINSTANCE.createEdgeMapping();
+        internalTransitionEdge.setName("InternalTransitionEdge");
+        internalTransitionEdge.setDomainClass("ecore.EObject");
+        internalTransitionEdge.setUseDomainElement(true);
+        internalTransitionEdge.setSemanticCandidatesExpression(
+                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'Transition' and o.sourceState != null and o.targetState != null and o.sourceState.innerStates->includes(o.targetState))");
+        internalTransitionEdge.getSourceMapping().add(compositeActionsNode);
+        internalTransitionEdge.getSourceMapping().add(initialPseudostateNode);
+        internalTransitionEdge.getTargetMapping().add(subStateNode);
+        internalTransitionEdge.setSourceFinderExpression("aql:self.sourceState");
+        internalTransitionEdge.setTargetFinderExpression("aql:self.targetState");
+        applyTransitionStyle(internalTransitionEdge);
+        kstatesDefaultLayer.getEdgeMappings().add(internalTransitionEdge);
+
+        // KSTATES TOOLS
+        buildKStatesToolSections(kstatesDefaultLayer, stateNode, subStateNode, transitionEdge,
+                internalTransitionEdge);
 
         // Save as .odesign XMI
         ResourceSet resourceSet = new ResourceSetImpl();
@@ -398,6 +341,210 @@ public class OdesignGenerator {
         resource.save(Collections.emptyMap());
 
         KarpfenLog.info("Successfully generated .odesign at: " + outputFile.getAbsolutePath());
+    }
+
+    private static DiagramDescription buildKMetaClassDiagram() {
+        DiagramDescription kmetaDiagram = DescriptionFactory.eINSTANCE.createDiagramDescription();
+        kmetaDiagram.setName("KMetaClassDiagram");
+        kmetaDiagram.setLabel("KMeta Class Diagram");
+        kmetaDiagram.setDomainClass("ecore.EPackage");
+        kmetaDiagram.getMetamodel().add(EcorePackage.eINSTANCE);
+
+        Layer kmetaDefaultLayer = DescriptionFactory.eINSTANCE.createLayer();
+        kmetaDefaultLayer.setName("Default");
+        kmetaDefaultLayer.setLabel("Default");
+        kmetaDiagram.setDefaultLayer(kmetaDefaultLayer);
+
+        kmetaDiagram.setLayout(createKMetaElkLayoutConfiguration());
+
+        // Class container node - EClass
+        ContainerMapping eClassNode = DescriptionFactory.eINSTANCE.createContainerMapping();
+        eClassNode.setName("EClassNode");
+        eClassNode.setDomainClass("ecore.EClass");
+        eClassNode.setSemanticCandidatesExpression("aql:self.eClassifiers->filter(ecore::EClass)");
+        eClassNode.setChildrenPresentation(ContainerLayout.LIST);
+
+        FlatContainerStyleDescription classStyle = StyleFactory.eINSTANCE.createFlatContainerStyleDescription();
+        classStyle.setLabelExpression("aql:self.getKMetaClassLabel()");
+        classStyle.setShowIcon(true);
+        classStyle.setTooltipExpression("aql:self.getKMetaDocumentation()");
+        classStyle.setBorderSizeComputationExpression("1");
+        classStyle.setWidthComputationExpression("14");
+        classStyle.setHeightComputationExpression("4");
+        eClassNode.setStyle(classStyle);
+        kmetaDefaultLayer.getContainerMappings().add(eClassNode);
+
+        // Class attributes subnodes - EAttribute in EClass
+        NodeMapping attributeNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        attributeNode.setName("EAttributeNode");
+        attributeNode.setDomainClass("ecore.EAttribute");
+        attributeNode.setSemanticCandidatesExpression("aql:self.eAttributes->select(a | a.name != '__id__')");
+
+        NodeStyleDescription attrStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        attrStyle.setLabelExpression("aql:self.getKMetaAttributeLabel()");
+        attrStyle.setShowIcon(true);
+        attrStyle.setTooltipExpression("aql:self.getKMetaDocumentation()");
+        attrStyle.setLabelAlignment(LabelAlignment.LEFT);
+        attrStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        attrStyle.setBorderSizeComputationExpression("0");
+        attrStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        attributeNode.setStyle(attrStyle);
+        eClassNode.getSubNodeMappings().add(attributeNode);
+
+        // Edge has - composition reference Orthogonal/Manhattan
+        EdgeMapping kmetaHasEdge = createKmetaEdgeMapping("HasCompositionEdge", true, eClassNode,
+                EdgeRouting.MANHATTAN_LITERAL);
+        kmetaDefaultLayer.getEdgeMappings().add(kmetaHasEdge);
+
+        // Edge knows - association reference Orthogonal/Manhattan
+        EdgeMapping kmetaKnowsEdge = createKmetaEdgeMapping("KnowsAssociationEdge", false, eClassNode,
+                EdgeRouting.MANHATTAN_LITERAL);
+        kmetaDefaultLayer.getEdgeMappings().add(kmetaKnowsEdge);
+
+        // KMETA TOOLS
+        buildKMetaToolSections(kmetaDefaultLayer, eClassNode, attributeNode,
+                kmetaHasEdge, kmetaKnowsEdge);
+
+        return kmetaDiagram;
+    }
+
+    public static CustomLayoutConfiguration createMasterElkLayoutTemplate(String label) {
+        CustomLayoutConfiguration elkLayout = DescriptionFactory.eINSTANCE.createCustomLayoutConfiguration();
+        elkLayout.setId("org.eclipse.elk.layered");
+        elkLayout.setLabel(label);
+
+        // Vertical hierarchy flow (top-to-bottom)
+        elkLayout.getLayoutOptions().add(createEnumLayoutOption(
+                "org.eclipse.elk.direction",
+                "DOWN",
+                LayoutOptionTarget.PARENT));
+
+        // UML 2.5 orthogonal edge routing
+        elkLayout.getLayoutOptions().add(createEnumLayoutOption(
+                "org.eclipse.elk.edgeRouting",
+                "ORTHOGONAL",
+                LayoutOptionTarget.PARENT));
+
+        // Port alignment: distribute connection ports evenly along box borders
+        elkLayout.getLayoutOptions().add(createEnumLayoutOption(
+                "org.eclipse.elk.portAlignment.default",
+                "DISTRIBUTED",
+                LayoutOptionTarget.NODE, LayoutOptionTarget.PARENT));
+
+        // Port-to-port spacing: prevent arrowhead & multiplicity collisions on
+        // shared boundaries
+        elkLayout.getLayoutOptions().add(createDoubleLayoutOption(
+                "org.eclipse.elk.spacing.portPort",
+                16.0,
+                LayoutOptionTarget.NODE, LayoutOptionTarget.PARENT));
+
+        // Edge-to-edge spacing: prevent parallel orthogonal lines from merging
+        elkLayout.getLayoutOptions().add(createDoubleLayoutOption(
+                "org.eclipse.elk.spacing.edgeEdge",
+                10.0,
+                LayoutOptionTarget.PARENT));
+
+        // Node-to-node spacing within the same layer
+        elkLayout.getLayoutOptions().add(createDoubleLayoutOption(
+                "org.eclipse.elk.spacing.nodeNode",
+                22.0,
+                LayoutOptionTarget.PARENT));
+
+        // Layer spacing: distance between hierarchy levels
+        elkLayout.getLayoutOptions().add(createDoubleLayoutOption(
+                "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers",
+                30.0,
+                LayoutOptionTarget.PARENT));
+
+        // Balanced node placement: center root and parent nodes over child clusters
+        elkLayout.getLayoutOptions().add(createEnumLayoutOption(
+                "org.eclipse.elk.layered.nodePlacement.bk.fixedAlignment",
+                "BALANCED",
+                LayoutOptionTarget.PARENT));
+
+        // Break the container ratchet loop: size nodes by content labels, not
+        // previous bounds
+        elkLayout.getLayoutOptions().add(createEnumSetLayoutOption(
+                "org.eclipse.elk.nodeSize.constraints",
+                "NODE_LABELS",
+                LayoutOptionTarget.NODE, LayoutOptionTarget.PARENT));
+
+        // Ensure base minimum size is maintained
+        elkLayout.getLayoutOptions().add(createEnumSetLayoutOption(
+                "org.eclipse.elk.nodeSize.options",
+                "DEFAULT_MINIMUM_SIZE",
+                LayoutOptionTarget.NODE, LayoutOptionTarget.PARENT));
+
+        return elkLayout;
+    }
+
+    public static CustomLayoutConfiguration createKMetaElkLayoutConfiguration() {
+        return createMasterElkLayoutTemplate("ELK Layered (KMeta)");
+    }
+
+    public static CustomLayoutConfiguration createKModelElkLayoutConfiguration() {
+        return createMasterElkLayoutTemplate("ELK Layered (KModel)");
+    }
+
+    public static CustomLayoutConfiguration createKStatesElkLayoutConfiguration() {
+        CustomLayoutConfiguration elkLayout = createMasterElkLayoutTemplate("ELK Layered (KStates)");
+        elkLayout.getLayoutOptions().add(createEnumLayoutOption(
+                "org.eclipse.elk.hierarchyHandling",
+                "INCLUDE_CHILDREN",
+                LayoutOptionTarget.PARENT));
+        return elkLayout;
+    }
+
+    public static CustomLayoutConfiguration createElkLayoutConfiguration() {
+        CustomLayoutConfiguration elkLayout = createMasterElkLayoutTemplate("ELK Layered");
+        elkLayout.getLayoutOptions().add(createEnumLayoutOption(
+                "org.eclipse.elk.hierarchyHandling",
+                "INCLUDE_CHILDREN",
+                LayoutOptionTarget.PARENT));
+        return elkLayout;
+    }
+
+    private static DoubleLayoutOption createDoubleLayoutOption(
+            String id,
+            double value,
+            LayoutOptionTarget... targets) {
+        DoubleLayoutOption option = DescriptionFactory.eINSTANCE.createDoubleLayoutOption();
+        option.setId(id);
+        for (LayoutOptionTarget t : targets) {
+            option.getTargets().add(t);
+        }
+        option.setValue(value);
+        return option;
+    }
+
+    private static EnumLayoutOption createEnumLayoutOption(
+            String id,
+            String selectedValue,
+            LayoutOptionTarget... targets) {
+        EnumLayoutOption option = DescriptionFactory.eINSTANCE.createEnumLayoutOption();
+        option.setId(id);
+        for (LayoutOptionTarget t : targets) {
+            option.getTargets().add(t);
+        }
+        EnumLayoutValue value = DescriptionFactory.eINSTANCE.createEnumLayoutValue();
+        value.setName(selectedValue);
+        option.setValue(value);
+        return option;
+    }
+
+    private static EnumSetLayoutOption createEnumSetLayoutOption(
+            String id,
+            String selectedValue,
+            LayoutOptionTarget... targets) {
+        EnumSetLayoutOption option = DescriptionFactory.eINSTANCE.createEnumSetLayoutOption();
+        option.setId(id);
+        for (LayoutOptionTarget t : targets) {
+            option.getTargets().add(t);
+        }
+        EnumLayoutValue value = DescriptionFactory.eINSTANCE.createEnumLayoutValue();
+        value.setName(selectedValue);
+        option.getValues().add(value);
+        return option;
     }
 
     private static EdgeMapping createKmetaEdgeMapping(String name, boolean isContainment,
@@ -425,9 +572,14 @@ public class OdesignGenerator {
         style.setEndsCentering(CenteringStyle.NONE);
 
         CenterLabelStyleDescription labelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
-        labelStyle.setLabelExpression("aql:self.getKMetaEdgeLabel()");
+        labelStyle.setLabelExpression("aql:self.name");
         labelStyle.setShowIcon(false);
         style.setCenterLabelStyleDescription(labelStyle);
+
+        EndLabelStyleDescription endLabelStyle = StyleFactory.eINSTANCE.createEndLabelStyleDescription();
+        endLabelStyle.setLabelExpression("aql:self.getKMetaEdgeEndLabel()");
+        endLabelStyle.setShowIcon(false);
+        style.setEndLabelStyleDescription(endLabelStyle);
         edge.setStyle(style);
         return edge;
     }
@@ -461,24 +613,48 @@ public class OdesignGenerator {
         return edge;
     }
 
-    private static EdgeMapping createKstatesTransitionEdgeMapping(String name, ContainerMapping stateNode,
-            EdgeRouting routing) {
-        EdgeMapping edge = DescriptionFactory.eINSTANCE.createEdgeMapping();
-        edge.setName(name);
-        edge.setDomainClass("ecore.EObject");
-        edge.setUseDomainElement(true);
-        edge.setSemanticCandidatesExpression(
-                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'Transition')");
-        edge.getSourceMapping().add(stateNode);
-        edge.getTargetMapping().add(stateNode);
-        edge.setSourceFinderExpression("aql:self.sourceState");
-        edge.setTargetFinderExpression("aql:self.targetState");
+    private static NodeMapping createEntryActionNode() {
+        NodeMapping entryActionNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        entryActionNode.setName("EntryActionNode");
+        entryActionNode.setDomainClass("ecore.EObject");
+        entryActionNode.setSemanticCandidatesExpression(
+                "aql:if self.entryAction != null and self.entryAction != '' then Sequence{self} else Sequence{} endif");
 
+        NodeStyleDescription entryStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        entryStyle.setLabelExpression("aql:self.getEntryLabel()");
+        entryStyle.setShowIcon(false);
+        entryStyle.setLabelAlignment(LabelAlignment.LEFT);
+        entryStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        entryStyle.setBorderSizeComputationExpression("0");
+        entryStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        entryActionNode.setStyle(entryStyle);
+        return entryActionNode;
+    }
+
+    private static NodeMapping createDoActionNode() {
+        NodeMapping doActionNode = DescriptionFactory.eINSTANCE.createNodeMapping();
+        doActionNode.setName("DoActionNode");
+        doActionNode.setDomainClass("ecore.EObject");
+        doActionNode.setSemanticCandidatesExpression(
+                "aql:if self.doAction != null and self.doAction != '' then Sequence{self} else Sequence{} endif");
+
+        NodeStyleDescription doStyle = StyleFactory.eINSTANCE.createSquareDescription();
+        doStyle.setLabelExpression("aql:self.getDoLabel()");
+        doStyle.setShowIcon(false);
+        doStyle.setLabelAlignment(LabelAlignment.LEFT);
+        doStyle.setLabelPosition(LabelPosition.NODE_LITERAL);
+        doStyle.setBorderSizeComputationExpression("0");
+        doStyle.setResizeKind(ResizeKind.NONE_LITERAL);
+        doActionNode.setStyle(doStyle);
+        return doActionNode;
+    }
+
+    private static void applyTransitionStyle(EdgeMapping edge) {
         EdgeStyleDescription style = StyleFactory.eINSTANCE.createEdgeStyleDescription();
         style.setLineStyle(LineStyle.SOLID_LITERAL);
         style.setTargetArrow(EdgeArrows.INPUT_ARROW_LITERAL);
         style.setSizeComputationExpression("1");
-        style.setRoutingStyle(routing);
+        style.setRoutingStyle(EdgeRouting.MANHATTAN_LITERAL);
         style.setEndsCentering(CenteringStyle.NONE);
 
         CenterLabelStyleDescription labelStyle = StyleFactory.eINSTANCE.createCenterLabelStyleDescription();
@@ -486,7 +662,6 @@ public class OdesignGenerator {
         labelStyle.setShowIcon(false);
         style.setCenterLabelStyleDescription(labelStyle);
         edge.setStyle(style);
-        return edge;
     }
 
     private static void applyDirectEditMask(DirectEditLabel directEditTool,
@@ -498,8 +673,7 @@ public class OdesignGenerator {
 
     private static void buildKMetaToolSections(Layer defaultLayer,
             ContainerMapping eClassNode, NodeMapping attributeNode,
-            EdgeMapping hasEdge, EdgeMapping knowsEdge,
-            EdgeMapping orthoHasEdge, EdgeMapping orthoKnowsEdge) {
+            EdgeMapping hasEdge, EdgeMapping knowsEdge) {
 
         // alias for different toolfactroies
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
@@ -582,7 +756,6 @@ public class OdesignGenerator {
         editHasOp.setFirstModelOperations(editHasCtx);
         editHas.setInitialOperation(editHasOp);
         hasEdge.setLabelDirectEdit(editHas);
-        orthoHasEdge.setLabelDirectEdit(editHas);
         typesSection.getOwnedTools().add(editHas);
 
         DirectEditLabel editKnows = dtf.createDirectEditLabel();
@@ -594,7 +767,6 @@ public class OdesignGenerator {
         editKnowsOp.setFirstModelOperations(editKnowsCtx);
         editKnows.setInitialOperation(editKnowsOp);
         knowsEdge.setLabelDirectEdit(editKnows);
-        orthoKnowsEdge.setLabelDirectEdit(editKnows);
         typesSection.getOwnedTools().add(editKnows);
 
         ToolSection propSection = dtf.createToolSection();
@@ -620,20 +792,19 @@ public class OdesignGenerator {
         defaultLayer.getToolSections().add(relSection);
 
         relSection.getOwnedTools()
-                .add(createReferenceTool(hasEdge, orthoHasEdge, "has (1:1 embedded)", "has_", true, 1));
+                .add(createReferenceTool(hasEdge, "has (1:1 embedded)", "has_", true, 1));
         relSection.getOwnedTools()
-                .add(createReferenceTool(hasEdge, orthoHasEdge, "has (1:N embedded list)", "has_list_",
+                .add(createReferenceTool(hasEdge, "has (1:N embedded list)", "has_list_",
                         true, -1));
         relSection.getOwnedTools().add(
-                createReferenceTool(knowsEdge, orthoKnowsEdge, "knows (1:1 link)", "knows_", false, 1));
+                createReferenceTool(knowsEdge, "knows (1:1 link)", "knows_", false, 1));
         relSection.getOwnedTools()
-                .add(createReferenceTool(knowsEdge, orthoKnowsEdge, "knows (1:N link list)",
+                .add(createReferenceTool(knowsEdge, "knows (1:N link list)",
                         "knows_list_", false, -1));
     }
 
     private static void buildKModelToolSections(Layer defaultLayer, ContainerMapping eObjectNode,
-            NodeMapping slotNode, EdgeMapping instanceHasEdge, EdgeMapping instanceKnowsEdge,
-            EdgeMapping orthoInstanceHasEdge, EdgeMapping orthoInstanceKnowsEdge) {
+            NodeMapping slotNode, EdgeMapping instanceHasEdge, EdgeMapping instanceKnowsEdge) {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
@@ -675,7 +846,6 @@ public class OdesignGenerator {
         editHasEdgeOp.setFirstModelOperations(editHasEdgeCtx);
         editHasEdge.setInitialOperation(editHasEdgeOp);
         instanceHasEdge.setLabelDirectEdit(editHasEdge);
-        orthoInstanceHasEdge.setLabelDirectEdit(editHasEdge);
         modelSection.getOwnedTools().add(editHasEdge);
 
         DirectEditLabel editKnowsEdge = dtf.createDirectEditLabel();
@@ -687,7 +857,6 @@ public class OdesignGenerator {
         editKnowsEdgeOp.setFirstModelOperations(editKnowsEdgeCtx);
         editKnowsEdge.setInitialOperation(editKnowsEdgeOp);
         instanceKnowsEdge.setLabelDirectEdit(editKnowsEdge);
-        orthoInstanceKnowsEdge.setLabelDirectEdit(editKnowsEdge);
         modelSection.getOwnedTools().add(editKnowsEdge);
 
         // Deletion tools (Slots are managed via <unset> direct-edit)
@@ -723,7 +892,6 @@ public class OdesignGenerator {
         delHasLinkOp.setFirstModelOperations(delHasLinkCtx);
         delHasLink.setInitialOperation(delHasLinkOp);
         instanceHasEdge.setDeletionDescription(delHasLink);
-        orthoInstanceHasEdge.setDeletionDescription(delHasLink);
         modelSection.getOwnedTools().add(delHasLink);
 
         DeleteElementDescription delKnowsLink = dtf.createDeleteElementDescription();
@@ -741,7 +909,6 @@ public class OdesignGenerator {
         delKnowsLinkOp.setFirstModelOperations(delKnowsLinkCtx);
         delKnowsLink.setInitialOperation(delKnowsLinkOp);
         instanceKnowsEdge.setDeletionDescription(delKnowsLink);
-        orthoInstanceKnowsEdge.setDeletionDescription(delKnowsLink);
         modelSection.getOwnedTools().add(delKnowsLink);
 
         // Object Relationships Palette Section
@@ -754,7 +921,6 @@ public class OdesignGenerator {
         createKnowsLinkTool.setName("CreateKnowsLink");
         createKnowsLinkTool.setLabel("knows (Reference Link)");
         createKnowsLinkTool.getEdgeMappings().add(instanceKnowsEdge);
-        createKnowsLinkTool.getEdgeMappings().add(orthoInstanceKnowsEdge);
         InitEdgeCreationOperation knowsLinkOp = vtf.createInitEdgeCreationOperation();
         ChangeContext knowsLinkCtx = vtf.createChangeContext();
         knowsLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, false)");
@@ -766,7 +932,6 @@ public class OdesignGenerator {
         createHasLinkTool.setName("CreateHasLink");
         createHasLinkTool.setLabel("has (Containment Link)");
         createHasLinkTool.getEdgeMappings().add(instanceHasEdge);
-        createHasLinkTool.getEdgeMappings().add(orthoInstanceHasEdge);
         InitEdgeCreationOperation hasLinkOp = vtf.createInitEdgeCreationOperation();
         ChangeContext hasLinkCtx = vtf.createChangeContext();
         hasLinkCtx.setBrowseExpression("aql:source.createInstanceLink(target, true)");
@@ -776,7 +941,7 @@ public class OdesignGenerator {
     }
 
     private static void buildKStatesToolSections(Layer defaultLayer, ContainerMapping stateNode,
-            EdgeMapping transitionEdge, EdgeMapping orthoTransitionEdge) {
+            ContainerMapping subStateNode, EdgeMapping transitionEdge, EdgeMapping internalTransitionEdge) {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
 
@@ -817,6 +982,7 @@ public class OdesignGenerator {
         editStateOp.setFirstModelOperations(editStateCtx);
         editStateName.setInitialOperation(editStateOp);
         stateNode.setLabelDirectEdit(editStateName);
+        subStateNode.setLabelDirectEdit(editStateName);
         statesSection.getOwnedTools().add(editStateName);
 
         DeleteElementDescription delState = dtf.createDeleteElementDescription();
@@ -830,6 +996,7 @@ public class OdesignGenerator {
         delStateOp.setFirstModelOperations(delStateCtx);
         delState.setInitialOperation(delStateOp);
         stateNode.setDeletionDescription(delState);
+        subStateNode.setDeletionDescription(delState);
         statesSection.getOwnedTools().add(delState);
 
         // Transitions Management Section
@@ -842,7 +1009,7 @@ public class OdesignGenerator {
         createTransTool.setName("CreateTransition");
         createTransTool.setLabel("Transition");
         createTransTool.getEdgeMappings().add(transitionEdge);
-        createTransTool.getEdgeMappings().add(orthoTransitionEdge);
+        createTransTool.getEdgeMappings().add(internalTransitionEdge);
         InitEdgeCreationOperation transLinkOp = vtf.createInitEdgeCreationOperation();
         ChangeContext transLinkCtx = vtf.createChangeContext();
         transLinkCtx.setBrowseExpression("aql:source.createTransitionLink(target)");
@@ -859,7 +1026,7 @@ public class OdesignGenerator {
         editGuardOp.setFirstModelOperations(editGuardCtx);
         editGuard.setInitialOperation(editGuardOp);
         transitionEdge.setLabelDirectEdit(editGuard);
-        orthoTransitionEdge.setLabelDirectEdit(editGuard);
+        internalTransitionEdge.setLabelDirectEdit(editGuard);
         transitionsSection.getOwnedTools().add(editGuard);
 
         DeleteElementDescription delTrans = dtf.createDeleteElementDescription();
@@ -873,7 +1040,7 @@ public class OdesignGenerator {
         delTransOp.setFirstModelOperations(delTransCtx);
         delTrans.setInitialOperation(delTransOp);
         transitionEdge.setDeletionDescription(delTrans);
-        orthoTransitionEdge.setDeletionDescription(delTrans);
+        internalTransitionEdge.setDeletionDescription(delTrans);
         transitionsSection.getOwnedTools().add(delTrans);
     }
 
@@ -917,7 +1084,7 @@ public class OdesignGenerator {
         return tool;
     }
 
-    private static EdgeCreationDescription createReferenceTool(EdgeMapping straightEdge, EdgeMapping orthoEdge,
+    private static EdgeCreationDescription createReferenceTool(EdgeMapping edgeMapping,
             String label, String prefix, boolean isContainment, int upperBound) {
         org.eclipse.sirius.diagram.description.tool.ToolFactory dtf = org.eclipse.sirius.diagram.description.tool.ToolFactory.eINSTANCE;
         org.eclipse.sirius.viewpoint.description.tool.ToolFactory vtf = org.eclipse.sirius.viewpoint.description.tool.ToolFactory.eINSTANCE;
@@ -926,8 +1093,7 @@ public class OdesignGenerator {
         tool.setName(label.replace(" ", "").replace("(", "").replace(")", "").replace(":", "").replace("-",
                 ""));
         tool.setLabel(label);
-        tool.getEdgeMappings().add(straightEdge);
-        tool.getEdgeMappings().add(orthoEdge);
+        tool.getEdgeMappings().add(edgeMapping);
 
         InitEdgeCreationOperation op = vtf.createInitEdgeCreationOperation();
         ChangeContext ctx = vtf.createChangeContext();

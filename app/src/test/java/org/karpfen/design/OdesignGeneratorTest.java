@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 import org.eclipse.emf.ecore.EAttribute;
 import org.eclipse.emf.ecore.EClass;
@@ -24,11 +25,14 @@ import org.eclipse.emf.ecore.xmi.impl.XMIResourceFactoryImpl;
 import org.eclipse.sirius.diagram.description.CenteringStyle;
 import org.eclipse.sirius.diagram.ContainerLayout;
 import org.eclipse.sirius.diagram.EdgeRouting;
-import org.eclipse.sirius.diagram.description.AdditionalLayer;
 import org.eclipse.sirius.diagram.description.ContainerMapping;
 import org.eclipse.sirius.diagram.description.DescriptionPackage;
 import org.eclipse.sirius.diagram.description.DiagramDescription;
+import org.eclipse.sirius.diagram.description.DoubleLayoutOption;
 import org.eclipse.sirius.diagram.description.EdgeMapping;
+import org.eclipse.sirius.diagram.description.EnumLayoutOption;
+import org.eclipse.sirius.diagram.description.EnumSetLayoutOption;
+import org.eclipse.sirius.diagram.description.LayoutOptionTarget;
 import org.eclipse.sirius.diagram.description.NodeMapping;
 import org.eclipse.sirius.diagram.description.style.FlatContainerStyleDescription;
 import org.eclipse.sirius.viewpoint.ViewpointPackage;
@@ -73,6 +77,9 @@ public class OdesignGeneratorTest {
         assertTrue(ODESIGN_FILE.exists(), "Generated .odesign file must exist.");
         assertTrue(ODESIGN_FILE.length() > 0, "Generated .odesign must not be empty.");
 
+        File resFile = OdesignGenerator.generateToResources();
+        assertTrue(resFile.exists(), "Generated resources .odesign file must exist.");
+
         System.out.println("Generated .odesign file at: " + ODESIGN_FILE.getAbsolutePath());
     }
 
@@ -103,12 +110,84 @@ public class OdesignGeneratorTest {
         assertEquals("KarpfenViewpoint", viewpoint.getName());
         assertEquals("Karpfen Visualizations", viewpoint.getLabel());
         assertEquals(3, viewpoint.getOwnedRepresentations().size(),
-                "odesign must contain kmeta, kmodel, and kstates viewpoints.");
+                "odesign must contain kmeta, kmodel, and kstates representations.");
 
-        // KMeta
+        // KMeta Representation
         DiagramDescription kmetaDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KMetaClassDiagram")).findFirst().orElseThrow();
         assertEquals("ecore.EPackage", kmetaDiagram.getDomainClass());
+        assertNotNull(kmetaDiagram.getLayout(), "KMeta diagram should have ELK layout configured");
+        assertTrue(kmetaDiagram
+                .getLayout() instanceof org.eclipse.sirius.diagram.description.CustomLayoutConfiguration);
+        org.eclipse.sirius.diagram.description.CustomLayoutConfiguration elkLayout = (org.eclipse.sirius.diagram.description.CustomLayoutConfiguration) kmetaDiagram
+                .getLayout();
+        assertEquals("org.eclipse.elk.layered", elkLayout.getId());
+
+        assertEquals(10, elkLayout.getLayoutOptions().size(),
+                "Should have direction, edgeRouting (ORTHOGONAL), portAlignment, portPort, edgeEdge, nodeNode, layer spacing, fixedAlignment (BALANCED), nodeSize.constraints, and nodeSize.options");
+        EnumLayoutOption dirOption = (EnumLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.direction")).findFirst().orElseThrow();
+        assertEquals("DOWN", dirOption.getValue().getName());
+        assertTrue(dirOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        EnumLayoutOption routingOption = (EnumLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.edgeRouting")).findFirst().orElseThrow();
+        assertEquals("ORTHOGONAL", routingOption.getValue().getName());
+        assertTrue(routingOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        EnumLayoutOption portAlignOption = (EnumLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.portAlignment.default")).findFirst()
+                .orElseThrow();
+        assertEquals("DISTRIBUTED", portAlignOption.getValue().getName());
+        assertTrue(portAlignOption.getTargets().contains(LayoutOptionTarget.NODE));
+        assertTrue(portAlignOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        DoubleLayoutOption portPortOption = (DoubleLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.spacing.portPort")).findFirst()
+                .orElseThrow();
+        assertEquals(16.0, portPortOption.getValue(), 0.001);
+        assertTrue(portPortOption.getTargets().contains(LayoutOptionTarget.NODE));
+        assertTrue(portPortOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        DoubleLayoutOption edgeEdgeOption = (DoubleLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.spacing.edgeEdge")).findFirst()
+                .orElseThrow();
+        assertEquals(10.0, edgeEdgeOption.getValue(), 0.001);
+        assertTrue(edgeEdgeOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        DoubleLayoutOption nodeNodeOption = (DoubleLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.spacing.nodeNode")).findFirst()
+                .orElseThrow();
+        assertEquals(22.0, nodeNodeOption.getValue(), 0.001);
+        assertTrue(nodeNodeOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        DoubleLayoutOption layerSpacingOption = (DoubleLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers"))
+                .findFirst().orElseThrow();
+        assertEquals(30.0, layerSpacingOption.getValue(), 0.001);
+        assertTrue(layerSpacingOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        EnumLayoutOption fixedAlignOption = (EnumLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId()
+                        .equals("org.eclipse.elk.layered.nodePlacement.bk.fixedAlignment"))
+                .findFirst().orElseThrow();
+        assertEquals("BALANCED", fixedAlignOption.getValue().getName());
+        assertTrue(fixedAlignOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        EnumSetLayoutOption constraintsOption = (EnumSetLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.nodeSize.constraints")).findFirst()
+                .orElseThrow();
+        assertEquals("NODE_LABELS", constraintsOption.getValues().get(0).getName());
+        assertTrue(constraintsOption.getTargets().contains(LayoutOptionTarget.NODE));
+        assertTrue(constraintsOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
+        EnumSetLayoutOption sizeOptions = (EnumSetLayoutOption) elkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.nodeSize.options")).findFirst()
+                .orElseThrow();
+        assertEquals("DEFAULT_MINIMUM_SIZE", sizeOptions.getValues().get(0).getName());
+        assertTrue(sizeOptions.getTargets().contains(LayoutOptionTarget.NODE));
+        assertTrue(sizeOptions.getTargets().contains(LayoutOptionTarget.PARENT));
+
         assertNotNull(kmetaDiagram.getDefaultLayer());
         assertEquals(1, kmetaDiagram.getDefaultLayer().getContainerMappings().size());
         assertEquals(3, kmetaDiagram.getDefaultLayer().getToolSections().size());
@@ -120,41 +199,52 @@ public class OdesignGeneratorTest {
         FlatContainerStyleDescription classStyle = (FlatContainerStyleDescription) eClassNode.getStyle();
         assertEquals("14", classStyle.getWidthComputationExpression());
         assertEquals("4", classStyle.getHeightComputationExpression());
+        assertEquals("aql:self.getKMetaDocumentation()", classStyle.getTooltipExpression());
 
         assertEquals(1, eClassNode.getSubNodeMappings().size());
         NodeMapping attrNode = eClassNode.getSubNodeMappings().get(0);
         assertEquals("EAttributeNode", attrNode.getName());
 
-        // Default Layer has 0 edges (edges live in switchable layers)
-        assertEquals(0, kmetaDiagram.getDefaultLayer().getEdgeMappings().size(),
-                "Default layer should hold 0 edges to allow clean switching");
+        // Default Layer has 2 Orthogonal edges
+        assertEquals(2, kmetaDiagram.getDefaultLayer().getEdgeMappings().size(),
+                "Default layer holds orthogonal composition and association edges");
+        assertEquals(0, kmetaDiagram.getAdditionalLayers().size(),
+                "No additional layers needed for single standard orthogonal routing");
 
-        // Additional Layers for KMeta (Straight vs Manhattan)
-        assertEquals(2, kmetaDiagram.getAdditionalLayers().size());
-
-        AdditionalLayer kmetaStraightLayer = kmetaDiagram.getAdditionalLayers().stream()
-                .filter(l -> l.getName().equals("StraightRoutingLayer")).findFirst().orElseThrow();
-        assertTrue(kmetaStraightLayer.isActiveByDefault());
-        assertTrue(kmetaStraightLayer.isOptional());
-        assertEquals(2, kmetaStraightLayer.getEdgeMappings().size());
-        EdgeMapping hasEdge = kmetaStraightLayer.getEdgeMappings().get(0);
-        assertEquals(EdgeRouting.STRAIGHT_LITERAL, hasEdge.getStyle().getRoutingStyle());
+        EdgeMapping hasEdge = kmetaDiagram.getDefaultLayer().getEdgeMappings().get(0);
+        assertEquals("HasCompositionEdge", hasEdge.getName());
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, hasEdge.getStyle().getRoutingStyle());
         assertEquals(CenteringStyle.NONE, hasEdge.getStyle().getEndsCentering());
+        assertNotNull(hasEdge.getStyle().getCenterLabelStyleDescription());
+        assertEquals("aql:self.name", hasEdge.getStyle().getCenterLabelStyleDescription().getLabelExpression());
+        assertNotNull(hasEdge.getStyle().getEndLabelStyleDescription());
+        assertEquals(
+                "aql:self.getKMetaEdgeEndLabel()",
+                hasEdge.getStyle().getEndLabelStyleDescription().getLabelExpression());
 
-        AdditionalLayer kmetaOrthoLayer = kmetaDiagram.getAdditionalLayers().stream()
-                .filter(l -> l.getName().equals("OrthogonalRoutingLayer")).findFirst().orElseThrow();
-        assertFalse(kmetaOrthoLayer.isActiveByDefault());
-        assertTrue(kmetaOrthoLayer.isOptional());
-        assertEquals(2, kmetaOrthoLayer.getEdgeMappings().size());
-        EdgeMapping orthoHasEdge = kmetaOrthoLayer.getEdgeMappings().get(0);
-        assertEquals(EdgeRouting.MANHATTAN_LITERAL, orthoHasEdge.getStyle().getRoutingStyle());
-        assertEquals(CenteringStyle.NONE, orthoHasEdge.getStyle().getEndsCentering());
+        EdgeMapping knowsEdge = kmetaDiagram.getDefaultLayer().getEdgeMappings().get(1);
+        assertEquals("KnowsAssociationEdge", knowsEdge.getName());
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, knowsEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, knowsEdge.getStyle().getEndsCentering());
+        assertNotNull(knowsEdge.getStyle().getCenterLabelStyleDescription());
+        assertEquals("aql:self.name",
+                knowsEdge.getStyle().getCenterLabelStyleDescription().getLabelExpression());
+        assertNotNull(knowsEdge.getStyle().getEndLabelStyleDescription());
+        assertEquals(
+                "aql:self.getKMetaEdgeEndLabel()",
+                knowsEdge.getStyle().getEndLabelStyleDescription().getLabelExpression());
 
         // KModel
         DiagramDescription kmodelDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KModelObjectDiagram")).findFirst().orElseThrow();
         assertEquals("ecore.EObject", kmodelDiagram.getDomainClass());
         assertEquals("aql:self.isKModelRoot()", kmodelDiagram.getPreconditionExpression());
+        assertNotNull(kmodelDiagram.getLayout(), "KModel diagram should have ELK layout configured");
+        org.eclipse.sirius.diagram.description.CustomLayoutConfiguration kmodelElkLayout = (org.eclipse.sirius.diagram.description.CustomLayoutConfiguration) kmodelDiagram
+                .getLayout();
+        assertEquals("org.eclipse.elk.layered", kmodelElkLayout.getId());
+        assertEquals(10, kmodelElkLayout.getLayoutOptions().size(),
+                "KModel ELK layout should contain all 10 layout options matching KMeta");
         assertNotNull(kmodelDiagram.getDefaultLayer());
         assertEquals(1, kmodelDiagram.getDefaultLayer().getContainerMappings().size());
         assertEquals(2, kmodelDiagram.getDefaultLayer().getToolSections().size());
@@ -164,94 +254,122 @@ public class OdesignGeneratorTest {
         assertEquals("aql:self.eAllContents()->including(self)", eObjNode.getSemanticCandidatesExpression());
         assertNotNull(eObjNode.getDeletionDescription());
         assertEquals(1, eObjNode.getSubNodeMappings().size());
+        assertEquals("aql:self.getSchemaAttributes()",
+                eObjNode.getSubNodeMappings().get(0).getSemanticCandidatesExpression());
 
         FlatContainerStyleDescription objStyle = (FlatContainerStyleDescription) eObjNode.getStyle();
-        assertEquals("16", objStyle.getWidthComputationExpression());
-        assertEquals("4", objStyle.getHeightComputationExpression());
+        assertEquals("0", objStyle.getWidthComputationExpression());
+        assertEquals("0", objStyle.getHeightComputationExpression());
 
-        // Default Layer has 0 edges
-        assertEquals(0, kmodelDiagram.getDefaultLayer().getEdgeMappings().size(),
-                "Default layer should hold 0 edges to allow clean switching");
+        // Default Layer has 2 Orthogonal edges
+        assertEquals(2, kmodelDiagram.getDefaultLayer().getEdgeMappings().size(),
+                "Default layer holds orthogonal containment and reference links");
+        assertEquals(0, kmodelDiagram.getAdditionalLayers().size(),
+                "No additional layers needed for KModel");
 
-        // Additional Layers for KModel (Straight vs Manhattan)
-        assertEquals(2, kmodelDiagram.getAdditionalLayers().size());
-
-        AdditionalLayer kmodelStraightLayer = kmodelDiagram.getAdditionalLayers().stream()
-                .filter(l -> l.getName().equals("StraightRoutingLayer")).findFirst().orElseThrow();
-        assertTrue(kmodelStraightLayer.isActiveByDefault());
-        assertTrue(kmodelStraightLayer.isOptional());
-        assertEquals(2, kmodelStraightLayer.getEdgeMappings().size());
-        EdgeMapping instHasEdge = kmodelStraightLayer.getEdgeMappings().get(0);
-        assertEquals(EdgeRouting.STRAIGHT_LITERAL, instHasEdge.getStyle().getRoutingStyle());
+        EdgeMapping instHasEdge = kmodelDiagram.getDefaultLayer().getEdgeMappings().get(0);
+        assertEquals("InstanceContainmentEdge", instHasEdge.getName());
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, instHasEdge.getStyle().getRoutingStyle());
         assertEquals(CenteringStyle.NONE, instHasEdge.getStyle().getEndsCentering());
 
-        AdditionalLayer kmodelOrthoLayer = kmodelDiagram.getAdditionalLayers().stream()
-                .filter(l -> l.getName().equals("OrthogonalRoutingLayer")).findFirst().orElseThrow();
-        assertFalse(kmodelOrthoLayer.isActiveByDefault());
-        assertTrue(kmodelOrthoLayer.isOptional());
-        assertEquals(2, kmodelOrthoLayer.getEdgeMappings().size());
-        EdgeMapping orthoInstHasEdge = kmodelOrthoLayer.getEdgeMappings().get(0);
-        assertEquals(EdgeRouting.MANHATTAN_LITERAL, orthoInstHasEdge.getStyle().getRoutingStyle());
-        assertEquals(CenteringStyle.NONE, orthoInstHasEdge.getStyle().getEndsCentering());
+        EdgeMapping instKnowsEdge = kmodelDiagram.getDefaultLayer().getEdgeMappings().get(1);
+        assertEquals("InstanceReferenceEdge", instKnowsEdge.getName());
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, instKnowsEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, instKnowsEdge.getStyle().getEndsCentering());
 
         // KStates
         DiagramDescription kstatesDiagram = (DiagramDescription) viewpoint.getOwnedRepresentations().stream()
                 .filter(r -> r.getName().equals("KStatesDiagram")).findFirst().orElseThrow();
         assertEquals("ecore.EObject", kstatesDiagram.getDomainClass());
         assertEquals("aql:self.isKStatesRoot()", kstatesDiagram.getPreconditionExpression());
+        assertNotNull(kstatesDiagram.getLayout(), "KStates diagram should have ELK layout configured");
+        org.eclipse.sirius.diagram.description.CustomLayoutConfiguration kstatesElkLayout = (org.eclipse.sirius.diagram.description.CustomLayoutConfiguration) kstatesDiagram
+                .getLayout();
+        assertEquals("org.eclipse.elk.layered", kstatesElkLayout.getId());
+        assertEquals(11, kstatesElkLayout.getLayoutOptions().size(),
+                "KStates ELK layout should contain 11 layout options including hierarchyHandling");
+        EnumLayoutOption hierOption = (EnumLayoutOption) kstatesElkLayout.getLayoutOptions().stream()
+                .filter(o -> o.getId().equals("org.eclipse.elk.hierarchyHandling")).findFirst()
+                .orElseThrow();
+        assertEquals("INCLUDE_CHILDREN", hierOption.getValue().getName());
+        assertTrue(hierOption.getTargets().contains(LayoutOptionTarget.PARENT));
+
         assertNotNull(kstatesDiagram.getDefaultLayer());
         assertEquals(1, kstatesDiagram.getDefaultLayer().getContainerMappings().size());
         assertEquals(2, kstatesDiagram.getDefaultLayer().getToolSections().size());
 
         ContainerMapping stateNode = kstatesDiagram.getDefaultLayer().getContainerMappings().get(0);
         assertEquals("StateNode", stateNode.getName());
-        assertEquals(
-                "aql:self.eAllContents()->including(self)->filter(ecore::EObject)->select(o | o.eClass().name == 'State')",
-                stateNode.getSemanticCandidatesExpression());
-        assertEquals(ContainerLayout.LIST, stateNode.getChildrenPresentation());
+        assertEquals("aql:self.states", stateNode.getSemanticCandidatesExpression());
+        assertEquals(ContainerLayout.FREE_FORM, stateNode.getChildrenPresentation());
         assertTrue(stateNode.getStyle() instanceof FlatContainerStyleDescription);
         FlatContainerStyleDescription stateStyle = (FlatContainerStyleDescription) stateNode.getStyle();
-        assertEquals("18", stateStyle.getWidthComputationExpression());
-        assertEquals("5", stateStyle.getHeightComputationExpression());
+        assertEquals("15", stateStyle.getWidthComputationExpression());
+        assertEquals("4", stateStyle.getHeightComputationExpression());
 
-        assertEquals(2, stateNode.getSubNodeMappings().size(), "EntryActionNode and DoActionNode");
-        NodeMapping entryNode = stateNode.getSubNodeMappings().get(0);
-        assertEquals("EntryActionNode", entryNode.getName());
+        assertEquals(1, stateNode.getSubNodeMappings().size(), "InitialPseudostateNode");
+        NodeMapping pseudoNode = stateNode.getSubNodeMappings().get(0);
+        assertEquals("InitialPseudostateNode", pseudoNode.getName());
+        assertEquals("ecore.EObject", pseudoNode.getDomainClass());
+        assertTrue(pseudoNode
+                .getStyle() instanceof org.eclipse.sirius.diagram.description.style.DotDescription);
+
+        // SubContainer mappings: CompositeStateActions and SubStateNode
+        assertEquals(2, stateNode.getSubContainerMappings().size(),
+                "StateNode contains CompositeStateActions and SubStateNode");
+
+        ContainerMapping compositeActionsNode = stateNode.getSubContainerMappings().get(0);
+        assertEquals("CompositeStateActions", compositeActionsNode.getName());
+        assertEquals("ecore.EObject", compositeActionsNode.getDomainClass());
         assertEquals(
-                "aql:if self.entryAction != null and self.entryAction != '' then Sequence{self} else Sequence{} endif",
-                entryNode.getSemanticCandidatesExpression());
-        assertEquals("ecore.EObject", entryNode.getDomainClass());
-
-        NodeMapping doNode = stateNode.getSubNodeMappings().get(1);
+                "aql:if (self.entryAction != null and self.entryAction != '') or (self.doAction != null and self.doAction != '') then Sequence{self} else Sequence{} endif",
+                compositeActionsNode.getSemanticCandidatesExpression());
+        assertEquals(ContainerLayout.LIST, compositeActionsNode.getChildrenPresentation());
+        assertEquals(2, compositeActionsNode.getSubNodeMappings().size(),
+                "EntryActionNode and DoActionNode in Actions compartment");
+        NodeMapping entryNode = compositeActionsNode.getSubNodeMappings().get(0);
+        assertEquals("EntryActionNode", entryNode.getName());
+        NodeMapping doNode = compositeActionsNode.getSubNodeMappings().get(1);
         assertEquals("DoActionNode", doNode.getName());
-        assertEquals("aql:if self.doAction != null and self.doAction != '' then Sequence{self} else Sequence{} endif",
-                doNode.getSemanticCandidatesExpression());
-        assertEquals("ecore.EObject", doNode.getDomainClass());
 
-        // Additional Layers for KStates Straight / Manhattan
-        assertEquals(2, kstatesDiagram.getAdditionalLayers().size());
+        // Nested SubState container mapping
+        ContainerMapping subStateNode = stateNode.getSubContainerMappings().get(1);
+        assertEquals("SubStateNode", subStateNode.getName());
+        assertEquals("aql:self.innerStates", subStateNode.getSemanticCandidatesExpression());
+        assertEquals(ContainerLayout.LIST, subStateNode.getChildrenPresentation());
+        assertTrue(subStateNode.getStyle() instanceof FlatContainerStyleDescription);
+        FlatContainerStyleDescription subStateStyle = (FlatContainerStyleDescription) subStateNode.getStyle();
+        assertEquals("aql:self.getStateHeaderLabel()", subStateStyle.getLabelExpression());
+        assertEquals(2, subStateNode.getSubNodeMappings().size(), "SubState EntryActionNode and DoActionNode");
 
-        AdditionalLayer kstatesStraightLayer = kstatesDiagram.getAdditionalLayers().stream()
-                .filter(l -> l.getName().equals("StraightRoutingLayer")).findFirst().orElseThrow();
-        assertTrue(kstatesStraightLayer.isActiveByDefault());
-        assertTrue(kstatesStraightLayer.isOptional());
-        assertEquals(1, kstatesStraightLayer.getEdgeMappings().size());
-        EdgeMapping transEdge = kstatesStraightLayer.getEdgeMappings().get(0);
-        assertEquals(EdgeRouting.STRAIGHT_LITERAL, transEdge.getStyle().getRoutingStyle());
+        // Default Layer has 2 Transition edges: TransitionEdge (external) and
+        // InternalTransitionEdge (parent-to-child)
+        assertEquals(2, kstatesDiagram.getDefaultLayer().getEdgeMappings().size(),
+                "Default layer holds TransitionEdge and InternalTransitionEdge");
+        assertEquals(0, kstatesDiagram.getAdditionalLayers().size(),
+                "No additional layers needed for KStates");
+
+        EdgeMapping transEdge = kstatesDiagram.getDefaultLayer().getEdgeMappings().get(0);
+        assertEquals("TransitionEdge", transEdge.getName());
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, transEdge.getStyle().getRoutingStyle());
         assertEquals(CenteringStyle.NONE, transEdge.getStyle().getEndsCentering());
-        assertEquals(1, transEdge.getSourceMapping().size(), "Edge links StateNode");
-        assertEquals(1, transEdge.getTargetMapping().size(), "Edge links StateNode");
+        assertEquals(2, transEdge.getSourceMapping().size(), "Edge links StateNode and SubStateNode");
+        assertEquals(2, transEdge.getTargetMapping().size(), "Edge links StateNode and SubStateNode");
+        assertTrue(transEdge.getSourceMapping().contains(stateNode));
+        assertTrue(transEdge.getSourceMapping().contains(subStateNode));
+        assertTrue(transEdge.getTargetMapping().contains(stateNode));
+        assertTrue(transEdge.getTargetMapping().contains(subStateNode));
 
-        AdditionalLayer kstatesOrthoLayer = kstatesDiagram.getAdditionalLayers().stream()
-                .filter(l -> l.getName().equals("OrthogonalRoutingLayer")).findFirst().orElseThrow();
-        assertFalse(kstatesOrthoLayer.isActiveByDefault());
-        assertTrue(kstatesOrthoLayer.isOptional());
-        assertEquals(1, kstatesOrthoLayer.getEdgeMappings().size());
-        EdgeMapping orthoTransEdge = kstatesOrthoLayer.getEdgeMappings().get(0);
-        assertEquals(EdgeRouting.MANHATTAN_LITERAL, orthoTransEdge.getStyle().getRoutingStyle());
-        assertEquals(CenteringStyle.NONE, orthoTransEdge.getStyle().getEndsCentering());
-        assertEquals(1, orthoTransEdge.getSourceMapping().size());
-        assertEquals(1, orthoTransEdge.getTargetMapping().size());
+        EdgeMapping internalTransEdge = kstatesDiagram.getDefaultLayer().getEdgeMappings().get(1);
+        assertEquals("InternalTransitionEdge", internalTransEdge.getName());
+        assertEquals(EdgeRouting.MANHATTAN_LITERAL, internalTransEdge.getStyle().getRoutingStyle());
+        assertEquals(CenteringStyle.NONE, internalTransEdge.getStyle().getEndsCentering());
+        assertEquals(2, internalTransEdge.getSourceMapping().size(),
+                "Source anchored to CompositeStateActions and InitialPseudostateNode");
+        assertEquals(1, internalTransEdge.getTargetMapping().size(), "Target anchored to SubStateNode");
+        assertTrue(internalTransEdge.getSourceMapping().contains(compositeActionsNode));
+        assertTrue(internalTransEdge.getSourceMapping().contains(pseudoNode));
+        assertTrue(internalTransEdge.getTargetMapping().contains(subStateNode));
     }
 
     @Test
@@ -282,7 +400,7 @@ public class OdesignGeneratorTest {
 
         EObject t3 = statesPkg.getEFactoryInstance().create(transClass);
         t3.eSet(condAttr, "EVAL { return $(d_closest_obstacle) < 0.2 }");
-        assertEquals("[d_closest_obstacle < 0.2]", services.getTransitionLabel(t3));
+        assertEquals("[EVAL { return d_closest_obstacle < 0.2 }]", services.getTransitionLabel(t3));
 
         EObject t4 = statesPkg.getEFactoryInstance().create(transClass);
         t4.eSet(condAttr, "EVENT(\"public\", \"start\")");
@@ -301,6 +419,19 @@ public class OdesignGeneratorTest {
         doAttr.setEType(EcorePackage.Literals.ESTRING);
         stateClass.getEStructuralFeatures().add(entryAttr);
         stateClass.getEStructuralFeatures().add(doAttr);
+
+        EAttribute stateNameAttr = EcoreFactory.eINSTANCE.createEAttribute();
+        stateNameAttr.setName("name");
+        stateNameAttr.setEType(EcorePackage.Literals.ESTRING);
+        stateClass.getEStructuralFeatures().add(stateNameAttr);
+
+        EReference innerStatesRef = EcoreFactory.eINSTANCE.createEReference();
+        innerStatesRef.setName("innerStates");
+        innerStatesRef.setEType(stateClass);
+        innerStatesRef.setContainment(true);
+        innerStatesRef.setUpperBound(-1);
+        stateClass.getEStructuralFeatures().add(innerStatesRef);
+
         statesPkg.getEClassifiers().add(stateClass);
 
         EObject s1 = statesPkg.getEFactoryInstance().create(stateClass);
@@ -312,6 +443,25 @@ public class OdesignGeneratorTest {
 
         String doLabel = services.getDoLabel(s1);
         assertEquals("do / SET(\"d_closest_obstacle\", 0.0)", doLabel);
+
+        // Hierarchical nested state names
+        EObject topState = statesPkg.getEFactoryInstance().create(stateClass);
+        topState.eSet(stateNameAttr, "observe");
+        assertEquals("observe", services.getStateHeaderLabel(topState));
+
+        EObject subState = statesPkg.getEFactoryInstance().create(stateClass);
+        subState.eSet(stateNameAttr, "react to obstacle");
+        @SuppressWarnings("unchecked")
+        List<EObject> topInners = (List<EObject>) topState.eGet(innerStatesRef);
+        topInners.add(subState);
+        assertEquals("react to obstacle", services.getStateHeaderLabel(subState));
+
+        EObject subSubState = statesPkg.getEFactoryInstance().create(stateClass);
+        subSubState.eSet(stateNameAttr, "fine tune");
+        @SuppressWarnings("unchecked")
+        List<EObject> subInners = (List<EObject>) subState.eGet(innerStatesRef);
+        subInners.add(subSubState);
+        assertEquals("fine tune", services.getStateHeaderLabel(subSubState));
     }
 
     @Test

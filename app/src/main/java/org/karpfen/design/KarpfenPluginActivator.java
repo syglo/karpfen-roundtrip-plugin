@@ -9,6 +9,7 @@ public class KarpfenPluginActivator implements BundleActivator {
 
     @Override
     public void start(BundleContext context) throws Exception {
+        // Double activations now activates trhough KarpfenStartup
         KarpfenStartup.registerKarpfenViewpoints();
     }
 
