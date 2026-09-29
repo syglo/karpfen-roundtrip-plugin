@@ -13,7 +13,7 @@ A visual roundtrip editing plugin for Karpfen DSLs (.kmeta, .kmodel, .kstates) u
 * **Eclipse Modeling Tools (2026-06 R)**:
 https://www.eclipse.org/downloads/packages/release/2026-06/r/eclipse-modeling-tools
 
-### Eclipse IDE Setup and Dependencies
+### Eclipse IDE Setup and Dependencies (VERY IMPORTANT)
 
 Install the required dependencies inside Eclipse Modeling Tools (2026-06 R):
 
@@ -54,10 +54,14 @@ git clone https://github.com/syglo/karpfen-roundtrip-plugin.git
 eclipseHome=<path>/eclipse-modeling-2026-06-R-win32-x86_64/eclipse
 org.gradle.java.home=<path>/eclipse-modeling-2026-06-R-win32-x86_64/eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.win32.x86_64_21.0.12.v20260826-1216/jre
 ```
+It will use Java version bundled with Eclipse for compilation of the plugin. The location of eclipse jre, from downloaded and unpacked Eclipse IDE locally, is inside: eclipse/plugins/org.eclipse.justj.xxxxxx (folder)
 
 3. Build and automatically deploy the plugin:
 
 ```bash
+# Run first this command, it will git clone karpfen-dsl-tools repo and build jar file
+./gradlew setupKarpfenJar
+
 # Multiple steps defined in build.gradle.kts
 # Generates .odesign, builds FAT Jar, clears OSGI cache, and copies to eclipse/dropins/
 ./gradlew eclipsereload
@@ -70,13 +74,25 @@ org.gradle.java.home=<path>/eclipse-modeling-2026-06-R-win32-x86_64/eclipse/plug
 ## Quick Start and Usage
 
 1. **Start Eclipse** with the installed plugin.
-2. **Create a Modeling Project**: Go to **File** -> **New** -> **Sirius / Modeling Project**.
-3. **Add DSL Models**: Copy your `.kmeta`, `.kmodel`, or `.kstates` files into the project, or use the provided reference files in `example/statemachine_full_example/`.
+2. **Create a Modeling Project**: Go to **File** -> **New** -> **Other** -> In selection Wizard: **Sirius / Modeling Project**.
+3. **Add DSL Models**: Copy drag your `.kmeta`, `.kmodel`, or `.kstates` files into the project, or use the provided reference files in `example/statemachine_full_example/`.
+  The project workspace folder is on the left side (Model Explorer Window)
 4. **Enable Viewpoints**: Right-click the project; **Viewpoints Selection**, and enable the **Karpfen Visualizations**.
 5. **Create Representation**: Expand nested directory in any Karpfen file (.kmeta, .kmodel, .kstates) in the Project Explorer; Right-click on top root, then press **New Representation** to open the graphical Sirius editor.
 6. **Roundtrip Editing**:
    * Open .k* text file, changes made in the text editor update the diagram view.
    * Open K* Diagram view, changes made on the diagram canvas are validated and serialized directly back into the `.k*` text files on disk.
+
+
+* Every element on the canvas is selectable and visible in Properties window at the bottom.
+
+* For example clicking on labels selects it and reflected in Properties window. To direct edit this label, while its selected (highlighted in blue), click once more. Don't double click.
+
+* Model explorer window on the left shows model EMF ecore tree.
+
+* We can open text editor for the model if double click on the root file with extension in the name on the end like .kmeta
+
+* Available tools are on the right side Palette Window.
 
 ---
 
